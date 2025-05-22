@@ -250,13 +250,4 @@ abstract contract ModifiersBase is Initializable {
         if (!brands.isValidBrand(brandId)) revert InvalidBrand(brandId);
         return brands.getBrandOwner(brandId) == claimedOwner;
     }
-
-    /**
-     * @dev Helper function to verify if an address is whitelisted
-     * @param wallet Address to check
-     * @return True if the address is whitelisted
-     */
-    function _isWhitelisted(address wallet) internal view returns (bool) {
-        return IWhitelist(roles.getRoleAddress(WHITELIST)).isWhitelisted(wallet);
-    }
 }

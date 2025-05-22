@@ -80,7 +80,7 @@ abstract contract WhitelistBase is
      * @param wallet Address to check
      * @return True if the address is whitelisted
      */
-    function _isWhitelisted(address wallet) internal view override returns (bool) {
+    function _isWhitelisted(address wallet) internal view returns (bool) {
         return _whitelisted[wallet];
     }
 }
