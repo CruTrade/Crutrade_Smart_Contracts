@@ -21,7 +21,7 @@ interface IWrappers {
      * @param collection Collection identifier
      * @param active Wrapper active status
      */
-    struct Wrapper {
+    struct WrapperData {
         string uri;
         string metaKey;
         uint256 amount;
@@ -39,7 +39,7 @@ interface IWrappers {
      * @param tokenId Original token ID
      * @param wrapperId Generated wrapper ID
      */
-    struct Data {
+    struct ImportOutput {
         string metaKey;
         bytes32 sku;
         uint256 tokenId;
@@ -55,7 +55,7 @@ interface IWrappers {
      */
     function getWrapperData(
         uint256 wrapperId
-    ) external view returns (Wrapper memory);
+    ) external view returns (WrapperData memory);
 
     /**
      * @notice Retrieves all wrappers for a specific collection
@@ -64,7 +64,7 @@ interface IWrappers {
      */
     function getCollectionData(
         bytes32 collection
-    ) external view returns (Wrapper[] memory);
+    ) external view returns (WrapperData[] memory);
 
     /**
      * @notice Performs a marketplace transfer of a wrapper

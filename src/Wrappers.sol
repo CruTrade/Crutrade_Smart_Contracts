@@ -84,7 +84,7 @@ contract Wrappers is WrapperBase {
      */
     function imports(
         address user,
-        Wrapper[] calldata wrappers
+        WrapperData[] calldata wrappers
     )
         external
         whenNotPaused
@@ -95,10 +95,10 @@ contract Wrappers is WrapperBase {
         uint256 length = wrappers.length;
         if (length == 0) revert EmptyInput();
 
-        Data[] memory data = new Data[](length);
+        ImportOutput[] memory data = new ImportOutput[](length);
 
         for (uint256 i; i < length; i++) {
-            (, Data memory wrapperData) = _processSingleImport(user, wrappers[i]);
+            (, ImportOutput memory wrapperData) = _processSingleImport(user, wrappers[i]);
             data[i] = wrapperData;
         }
 
@@ -185,7 +185,7 @@ contract Wrappers is WrapperBase {
      */
     function getWrapperData(
         uint256 wrapperId
-    ) external view override returns (Wrapper memory) {
+    ) external view override returns (WrapperData memory) {
         return _getWrapperData(wrapperId);
     }
 
@@ -196,7 +196,7 @@ contract Wrappers is WrapperBase {
      */
     function getCollectionData(
         bytes32 collection
-    ) external view override returns (Wrapper[] memory) {
+    ) external view override returns (WrapperData[] memory) {
         return _getCollectionData(collection);
     }
 

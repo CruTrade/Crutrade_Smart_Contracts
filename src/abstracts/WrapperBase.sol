@@ -34,7 +34,7 @@ abstract contract WrapperBase is
     string internal _httpsBaseURI;
 
     /// @dev Maps wrapper IDs to their data
-    mapping(uint256 => Wrapper) internal _wrappersById;
+    mapping(uint256 => WrapperData) internal _wrappersById;
 
     /// @dev Maps collections to their wrapper IDs
     mapping(bytes32 => EnumerableSet.UintSet) internal _wrappersByCollection;
@@ -63,7 +63,7 @@ abstract contract WrapperBase is
      * @param user Address of the user
      * @param importData Array of imported wrapper data
      */
-    event Import(address indexed user, Data[] importData);
+    event Import(address indexed user, ImportOutput[] importData);
 
     /**
      * @dev Emitted when wrappers are exported
@@ -123,13 +123,13 @@ abstract contract WrapperBase is
      */
     function _processSingleImport(
         address user,
-        Wrapper calldata wrapper
-    ) internal returns (uint256 wrapperId, Data memory data) {
+        WrapperData calldata wrapper
+    ) internal returns (uint256 wrapperId, ImportOutput memory data) {
         if (wrapper.active) revert InvalidToken();
         wrapperId = _wrapperIdCounter++;
         bytes32 collection = wrapper.collection;
 
-        _wrappersById[wrapperId] = Wrapper(
+        _wrappersById[wrapperId] = WrapperData(
             wrapper.uri,
             wrapper.metaKey,
             0,
@@ -141,7 +141,7 @@ abstract contract WrapperBase is
 
         _wrappersByCollection[collection].add(wrapperId);
 
-        data = Data({
+        data = ImportOutput({
             metaKey: wrapper.metaKey,
             sku: collection,
             tokenId: wrapper.tokenId,
@@ -158,7 +158,7 @@ abstract contract WrapperBase is
      * @param wrapperId ID of the wrapper to export
      */
     function _processSingleExport(uint256 wrapperId) internal {
-        Wrapper storage wrapper = _wrappersById[wrapperId];
+        WrapperData storage wrapper = _wrappersById[wrapperId];
         if (!wrapper.active) revert InvalidToken();
         if (wrapper.collection == bytes32(0)) revert WrapperNotFound(wrapperId);
         wrapper.active = false;
@@ -190,7 +190,7 @@ abstract contract WrapperBase is
      */
     function _getWrapperData(
         uint256 wrapperId
-    ) internal view returns (Wrapper memory wrapper) {
+    ) internal view returns (WrapperData memory wrapper) {
         wrapper = _wrappersById[wrapperId];
         if (wrapper.collection == bytes32(0)) revert WrapperNotFound(wrapperId);
         return wrapper;
@@ -203,11 +203,11 @@ abstract contract WrapperBase is
      */
     function _getCollectionData(
         bytes32 collection
-    ) internal view returns (Wrapper[] memory) {
+    ) internal view returns (WrapperData[] memory) {
         uint256[] memory wrapperIds = _wrappersByCollection[collection].values();
         uint256 length = wrapperIds.length;
 
-        Wrapper[] memory wrappers = new Wrapper[](length);
+        WrapperData[] memory wrappers = new WrapperData[](length);
 
         // Gas optimization for bulk operations
         unchecked {
