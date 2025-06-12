@@ -262,8 +262,8 @@ contract CrutradeEcosystemTest is Test {
         
         // Import wrapper
         vm.startPrank(operational);
-        IWrappers.wrapperData[] memory wrapperData = new IWrappers.wrapperData[](1);
-        wrapperData[0] = IWrappers.wrapperData({
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
             metaKey: "item_001",
             amount: 0,
@@ -276,7 +276,7 @@ contract CrutradeEcosystemTest is Test {
         wrappers.imports(seller, wrapperData);
         
         // Verify wrapper was imported
-        IWrappers.wrapperData memory imported = wrappers.getWrapperData(0);
+        IWrappers.WrapperData memory imported = wrappers.getWrapperData(0);
         assertEq(imported.metaKey, "item_001");
         assertEq(imported.tokenId, 1);
         assertEq(imported.brandId, brandId);
@@ -289,7 +289,7 @@ contract CrutradeEcosystemTest is Test {
         wrappers.exports(seller, wrapperIds);
         
         // Verify wrapper was exported (deactivated)
-        IWrappers.wrapperData memory exported = wrappers.getWrapperData(0);
+        IWrappers.WrapperData memory exported = wrappers.getWrapperData(0);
         assertFalse(exported.active);
         
         vm.stopPrank();
@@ -682,8 +682,8 @@ contract CrutradeEcosystemTest is Test {
         // Register brand and import wrapper
         uint256 brandId = brands.register(seller);
         
-        IWrappers.wrapperData[] memory wrapperData = new IWrappers.wrapperData[](1);
-        wrapperData[0] = IWrappers.wrapperData({
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
             metaKey: "premium_item",
             amount: 0,
@@ -769,8 +769,8 @@ contract CrutradeEcosystemTest is Test {
         uint256 brandId = brands.register(seller);
         
         // Import wrappers from different collections
-        IWrappers.wrapperData[] memory wrapperData = new IWrappers.wrapperData[](3);
-        wrapperData[0] = IWrappers.wrapperData({
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](3);
+        wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
             metaKey: "item_001",
             amount: 0,
@@ -779,7 +779,7 @@ contract CrutradeEcosystemTest is Test {
             collection: keccak256("COLLECTION_A"),
             active: false
         });
-        wrapperData[1] = IWrappers.wrapperData({
+        wrapperData[1] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/2",
             metaKey: "item_002",
             amount: 0,
@@ -788,7 +788,7 @@ contract CrutradeEcosystemTest is Test {
             collection: keccak256("COLLECTION_B"),
             active: false
         });
-        wrapperData[2] = IWrappers.wrapperData({
+        wrapperData[2] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/3",
             metaKey: "item_003",
             amount: 0,
@@ -808,10 +808,10 @@ contract CrutradeEcosystemTest is Test {
         assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 2));
         
         // Test collection-based queries
-        IWrappers.wrapperData[] memory collectionA = wrappers.getCollectionData(keccak256("COLLECTION_A"));
+        IWrappers.WrapperData[] memory collectionA = wrappers.getCollectionData(keccak256("COLLECTION_A"));
         assertEq(collectionA.length, 2);
         
-        IWrappers.wrapperData[] memory collectionB = wrappers.getCollectionData(keccak256("COLLECTION_B"));
+        IWrappers.WrapperData[] memory collectionB = wrappers.getCollectionData(keccak256("COLLECTION_B"));
         assertEq(collectionB.length, 1);
         
         vm.stopPrank();
@@ -824,8 +824,8 @@ contract CrutradeEcosystemTest is Test {
         
         // Create another wrapper from same collection
         vm.startPrank(operational);
-        IWrappers.wrapperData[] memory wrapperData = new IWrappers.wrapperData[](1);
-        wrapperData[0] = IWrappers.wrapperData({
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/2",
             metaKey: "item_002",
             amount: 0,
@@ -1025,8 +1025,8 @@ contract CrutradeEcosystemTest is Test {
         
         brandId = brands.register(seller);
         
-        IWrappers.wrapperData[] memory wrapperData = new IWrappers.wrapperData[](1);
-        wrapperData[0] = IWrappers.wrapperData({
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
             metaKey: "item_001",
             amount: 0,
