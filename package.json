@@ -1,6 +1,6 @@
 {
   "name": "@crutrade/contracts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CruTrade Smart Contracts - ABIs and Addresses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,7 @@
     "clean": "rm -rf dist out cache broadcast",
     "build": "forge build --via-ir && tsup",
     "deploy:local": "source .env && NODE_ENV=local forge script script/deploy.s.sol --rpc-url http://127.0.0.1:8545 --private-key $PRIVATE_KEY_LOCAL --broadcast --via-ir && bun script/init.ts && bun script/update-package.ts",
-    "deploy:testnet": "source .env && NODE_ENV=dev forge script script/deploy.s.sol --rpc-url $RPC_DEV --private-key $PRIVATE_KEY --broadcast --via-ir --silent && bun script/init.ts && bun script/update-package.ts",  
+    "deploy:testnet": "source .env && NODE_ENV=dev forge script script/deploy.s.sol --rpc-url $RPC_DEV --private-key $PRIVATE_KEY --broadcast --via-ir --silent && bun script/init.ts && bun script/update-package.ts",
     "deploy:mainnet": "source .env && NODE_ENV=production forge script script/deploy.s.sol --rpc-url $RPC --private-key $PRIVATE_KEY --broadcast --via-ir --silent && bun script/init.ts && bun script/update-package.ts",
     "init:local": "source .env && NODE_ENV=local bun script/init.ts",
     "init:testnet": "source .env && NODE_ENV=dev bun script/init.ts",
@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "tsup": "^8.0.0", 
+    "tsup": "^8.0.0",
     "typescript": "^5.8.0"
   }
 }
