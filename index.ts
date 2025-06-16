@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-06-12T21:06:55.643Z
+// Updated: 2025-06-16T07:17:29.803Z
 
 import type { Address } from 'viem';
 
@@ -6193,13 +6193,13 @@ export const addresses = {
     Memberships: '0x0000000000000000000000000000000000000000' as Address,
   },
   testnet: {
-    Roles: '0xbe927f44074628a967dAC502E2E48631E289597b' as Address,
-    Brands: '0x5106366fb3624486ed3E0B5414B7972A74c4e306' as Address,
-    Wrappers: '0xF2B6373E9cD62dAa4823C9672E0c176c0d155BaE' as Address,
-    Whitelist: '0x86dAAa16d50E0ce854a364a90c8F417b109513E1' as Address,
-    Payments: '0xA50411E5869ed900891d511A35f06c3C4EFA7a3b' as Address,
-    Sales: '0x97417B3110DfBAEaB03d20AAE8f3b5bc5aA65892' as Address,
-    Memberships: '0xcC63BFf1310236b235a042aEA01b21a405D4Df2F' as Address,
+    Roles: '0xb90003B8AC8fe88F55b62BC6778b964450CE9106' as Address,
+    Brands: '0xA1de69C6b69DD79396585d7f75A01306014cCc1b' as Address,
+    Wrappers: '0x2AdCFf8078E4C37A256d4385d9C100eBc224BB47' as Address,
+    Whitelist: '0x2C1F70950197a4D4C806Fb166C9bAd41D75473E4' as Address,
+    Payments: '0xf8C2Ed7780d139c65260e10E4F5F51713add1E61' as Address,
+    Sales: '0x3a9FF358946f80436C586131A4b09014FF113Dc1' as Address,
+    Memberships: '0xF0dA512a727Dd8A988E3289f1500E45D901AFEc9' as Address,
   }
 };
 

@@ -79,7 +79,7 @@ abstract contract ScheduleBase is Initializable {
       isActive: true
     });
 
-    _scheduleCount = 1; // One initial schedule
+    _scheduleCount = 2; // One initial schedule
   }
 
   /* SCHEDULE MANAGEMENT */
