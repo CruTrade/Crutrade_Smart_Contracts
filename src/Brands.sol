@@ -21,16 +21,20 @@ contract Brands is BrandsBase, IBrands {
   }
 
   /**
-   * @dev Initializes the contract with roles contract address
+   * @dev Initializes the contract with roles contract address and registers first brand
    * @param _roles Address of the roles contract
+   * @param firstBrandOwner Address to register as first brand owner
    */
-  function initialize(address _roles) public initializer {
+  function initialize(address _roles, address firstBrandOwner) public initializer {
     __BrandsBase_init(
       _roles,
       'Crutrade Brands',
       'CRUB',
       'https://metadata.crutrade.io/brands/'
     );
+    
+    // Register first brand automatically
+    _register(firstBrandOwner);
   }
 
   /* BRAND MANAGEMENT */

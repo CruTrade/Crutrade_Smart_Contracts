@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-06-16T07:17:29.803Z
+// Updated: 2025-06-17T21:00:45.285Z
 
 import type { Address } from 'viem';
 
@@ -90,25 +90,6 @@ export const abis = {
   },
   {
     "type": "function",
-    "name": "getTokenDecimals",
-    "inputs": [
-      {
-        "name": "token",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "grantDelegateRole",
     "inputs": [
       {
@@ -143,7 +124,7 @@ export const abis = {
     "name": "hasDelegateRole",
     "inputs": [
       {
-        "name": "contractAddress",
+        "name": "_contract",
         "type": "address",
         "internalType": "address"
       }
@@ -162,7 +143,7 @@ export const abis = {
     "name": "hasPaymentRole",
     "inputs": [
       {
-        "name": "token",
+        "name": "_contract",
         "type": "address",
         "internalType": "address"
       }
@@ -208,6 +189,36 @@ export const abis = {
         "name": "defaultAdmin",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "usdtAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "operationalAddresses",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "contractAddresses",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "userRoles",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
+      },
+      {
+        "name": "contractRoles",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
+      },
+      {
+        "name": "delegateIndices",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "outputs": [],
@@ -796,6 +807,11 @@ export const abis = {
     "inputs": [
       {
         "name": "_roles",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "firstBrandOwner",
         "type": "address",
         "internalType": "address"
       }
@@ -2525,6 +2541,17 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "CollectionNotFound",
+    "inputs": [
+      {
+        "name": "collection",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "ERC1967InvalidImplementation",
     "inputs": [
       {
@@ -3341,30 +3368,6 @@ export const abis = {
   },
   {
     "type": "function",
-    "name": "getFeePercentage",
-    "inputs": [
-      {
-        "name": "membershipId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "isToFee",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getFees",
     "inputs": [],
     "outputs": [
@@ -3389,6 +3392,30 @@ export const abis = {
             "internalType": "address"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getMembershipFees",
+    "inputs": [
+      {
+        "name": "membershipId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "sellerFee",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyerFee",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -3492,20 +3519,10 @@ export const abis = {
   },
   {
     "type": "function",
-    "name": "setFeePercentage",
+    "name": "setFiatFeePercentage",
     "inputs": [
       {
-        "name": "membershipId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "isToFee",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "percentage",
+        "name": "newPercentage",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -3515,10 +3532,20 @@ export const abis = {
   },
   {
     "type": "function",
-    "name": "setFiatFeePercentage",
+    "name": "setMembershipFees",
     "inputs": [
       {
-        "name": "newPercentage",
+        "name": "membershipId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "sellerFee",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyerFee",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -3899,6 +3926,31 @@ export const abis = {
         "type": "uint64",
         "indexed": false,
         "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MembershipFeesUpdated",
+    "inputs": [
+      {
+        "name": "membershipId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "sellerFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyerFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -4393,8 +4445,19 @@ export const abis = {
   },
   {
     "type": "function",
-    "name": "getAllDurations",
-    "inputs": [],
+    "name": "getAllDurationsPaginated",
+    "inputs": [
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
       {
         "name": "durationIds",
@@ -4405,17 +4468,9 @@ export const abis = {
         "name": "durationValues",
         "type": "uint256[]",
         "internalType": "uint256[]"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getContractVersion",
-    "inputs": [],
-    "outputs": [
+      },
       {
-        "name": "",
+        "name": "total",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -4432,6 +4487,19 @@ export const abis = {
         "internalType": "uint256"
       }
     ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getListingDelay",
+    "inputs": [],
     "outputs": [
       {
         "name": "",
@@ -4468,7 +4536,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct SalesBase.Sale",
+        "internalType": "struct Sale",
         "components": [
           {
             "name": "end",
@@ -4486,14 +4554,14 @@ export const abis = {
             "internalType": "uint256"
           },
           {
-            "name": "seller",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
             "name": "wrapperId",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "active",
@@ -4519,7 +4587,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple[]",
-        "internalType": "struct SalesBase.Sale[]",
+        "internalType": "struct Sale[]",
         "components": [
           {
             "name": "end",
@@ -4537,14 +4605,14 @@ export const abis = {
             "internalType": "uint256"
           },
           {
-            "name": "seller",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
             "name": "wrapperId",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "active",
@@ -4580,7 +4648,7 @@ export const abis = {
       {
         "name": "sales",
         "type": "tuple[]",
-        "internalType": "struct SalesBase.Sale[]",
+        "internalType": "struct Sale[]",
         "components": [
           {
             "name": "end",
@@ -4598,14 +4666,14 @@ export const abis = {
             "internalType": "uint256"
           },
           {
-            "name": "seller",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
             "name": "wrapperId",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "seller",
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "active",
@@ -4624,19 +4692,34 @@ export const abis = {
   },
   {
     "type": "function",
-    "name": "getSalesBySeller",
+    "name": "getSalesBySellerPaginated",
     "inputs": [
       {
         "name": "seller",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "saleIds",
         "type": "uint256[]",
         "internalType": "uint256[]"
+      },
+      {
+        "name": "total",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -4837,12 +4920,25 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "setListingDelay",
+    "inputs": [
+      {
+        "name": "delay",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setSchedules",
     "inputs": [
       {
         "name": "scheduleIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
+        "type": "uint8[]",
+        "internalType": "uint8[]"
       },
       {
         "name": "daysOfWeek",
@@ -5004,19 +5100,6 @@ export const abis = {
   },
   {
     "type": "event",
-    "name": "ContractUpgraded",
-    "inputs": [
-      {
-        "name": "newVersion",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "DurationSet",
     "inputs": [
       {
@@ -5067,7 +5150,7 @@ export const abis = {
         "name": "dates",
         "type": "tuple[]",
         "indexed": false,
-        "internalType": "struct SalesBase.Date[]",
+        "internalType": "struct Date[]",
         "components": [
           {
             "name": "expireListDate",
@@ -5157,6 +5240,25 @@ export const abis = {
   },
   {
     "type": "event",
+    "name": "ListingDelayUpdated",
+    "inputs": [
+      {
+        "name": "oldDelay",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newDelay",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Paused",
     "inputs": [
       {
@@ -5188,7 +5290,7 @@ export const abis = {
         "name": "dates",
         "type": "tuple[]",
         "indexed": false,
-        "internalType": "struct SalesBase.Date[]",
+        "internalType": "struct Date[]",
         "components": [
           {
             "name": "expireListDate",
@@ -5471,8 +5573,30 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "InvalidDurationId",
+    "inputs": [
+      {
+        "name": "durationId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InvalidInitialization",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidListingDelay",
+    "inputs": [
+      {
+        "name": "delay",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -5520,6 +5644,17 @@ export const abis = {
         "name": "actual",
         "type": "address",
         "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidTimestamp",
+    "inputs": [
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -6193,13 +6328,13 @@ export const addresses = {
     Memberships: '0x0000000000000000000000000000000000000000' as Address,
   },
   testnet: {
-    Roles: '0xb90003B8AC8fe88F55b62BC6778b964450CE9106' as Address,
-    Brands: '0xA1de69C6b69DD79396585d7f75A01306014cCc1b' as Address,
-    Wrappers: '0x2AdCFf8078E4C37A256d4385d9C100eBc224BB47' as Address,
-    Whitelist: '0x2C1F70950197a4D4C806Fb166C9bAd41D75473E4' as Address,
-    Payments: '0xf8C2Ed7780d139c65260e10E4F5F51713add1E61' as Address,
-    Sales: '0x3a9FF358946f80436C586131A4b09014FF113Dc1' as Address,
-    Memberships: '0xF0dA512a727Dd8A988E3289f1500E45D901AFEc9' as Address,
+    Roles: '0x6A1DE135Bf10b9639AF08da4C037dDa4D61a89C3' as Address,
+    Brands: '0xBe166CB8d2d390ACc42C232659c44fF13B8f37e1' as Address,
+    Wrappers: '0x887BDFFd2197b9066Fe24AAdd898C4F20F7e3779' as Address,
+    Whitelist: '0x73f18707e6c29F8D71d358689FEfd0A4AdeA4Dc2' as Address,
+    Payments: '0xa008A811982E1b075F928F72dfB8Ba47BeedeF73' as Address,
+    Sales: '0x741037F08623643a4d857dbc85ea6DDf6F6558fC' as Address,
+    Memberships: '0x29Fb9bc3500B24138Dd8b5db31e5a4B120236fe0' as Address,
   }
 };
 

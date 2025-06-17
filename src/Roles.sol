@@ -12,6 +12,7 @@ import './interfaces/IRoles.sol';
  * @custom:security-contact security@crutrade.io
  */
 contract Roles is RolesBase, IRoles {
+  
   /* INITIALIZATION */
 
   /**
@@ -22,11 +23,53 @@ contract Roles is RolesBase, IRoles {
   }
 
   /**
-   * @notice Initializes the contract with the default admin address
-   * @param defaultAdmin Address of the default admin
+   * @notice Initializes the contract with complete ecosystem setup
+   * @dev Sets up all roles, delegates, and payment configuration in one call
+   * @param defaultAdmin Address of the default admin (multisig)
+   * @param usdtAddress Address of the USDT token for payments
+   * @param operationalAddresses Array of addresses to grant OPERATIONAL role
+   * @param contractAddresses Array of contract addresses for role assignment
+   * @param userRoles Array of role hashes to grant to defaultAdmin
+   * @param contractRoles Array of role hashes to grant to contracts (matches contractAddresses order)
+   * @param delegateIndices Array of indices indicating which contracts get delegate roles
    */
-  function initialize(address defaultAdmin) public initializer {
+  function initialize(
+    address defaultAdmin,
+    address usdtAddress,
+    address[] calldata operationalAddresses,
+    address[] calldata contractAddresses,
+    bytes32[] calldata userRoles,
+    bytes32[] calldata contractRoles,
+    uint256[] calldata delegateIndices
+  ) public initializer {
     __RolesBase_init(defaultAdmin);
+    
+    // Grant all user roles to admin (FIAT, OWNER, PAUSER, UPGRADER, TREASURY)
+    for (uint256 i = 0; i < userRoles.length; i++) {
+      _grantRole(userRoles[i], defaultAdmin);
+    }
+    
+    // Grant operational roles to specified addresses
+    bytes32 operationalRole = keccak256('OPERATIONAL');
+    for (uint256 i = 0; i < operationalAddresses.length; i++) {
+      _grantRole(operationalRole, operationalAddresses[i]);
+    }
+    
+    // Grant delegate roles to contracts that need them (payments, sales, wrappers)
+    for (uint256 i = 0; i < delegateIndices.length; i++) {
+      if (delegateIndices[i] < contractAddresses.length) {
+        _grantDelegateRole(contractAddresses[delegateIndices[i]]);
+      }
+    }
+    
+    // Grant contract-specific roles (BRANDS, WRAPPERS, WHITELIST, etc.)
+    for (uint256 i = 0; i < contractAddresses.length && i < contractRoles.length; i++) {
+      _grantRole(contractRoles[i], contractAddresses[i]);
+    }
+    
+    // Configure USDT as payment token with 6 decimals
+    _setPayment(usdtAddress, 6);
+    _setDefaultFiatToken(usdtAddress);
   }
 
   /* PAYMENT CONFIGURATION */
@@ -36,10 +79,7 @@ contract Roles is RolesBase, IRoles {
    * @param token Address of the token
    * @param decimals Number of decimals for the token
    */
-  function setPayment(
-    address token,
-    uint8 decimals
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function setPayment(address token, uint8 decimals) external onlyRole(DEFAULT_ADMIN_ROLE) {
     _setPayment(token, decimals);
   }
 
@@ -47,9 +87,7 @@ contract Roles is RolesBase, IRoles {
    * @notice Sets the default fiat token
    * @param token Address of the token
    */
-  function setDefaultFiatToken(
-    address token
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function setDefaultFiatToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
     _setDefaultFiatToken(token);
   }
 
@@ -59,9 +97,7 @@ contract Roles is RolesBase, IRoles {
    * @notice Grants delegation rights to a contract
    * @param contractAddress Address of the contract
    */
-  function grantDelegateRole(
-    address contractAddress
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function grantDelegateRole(address contractAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
     _grantDelegateRole(contractAddress);
   }
 
@@ -69,103 +105,51 @@ contract Roles is RolesBase, IRoles {
    * @notice Revokes delegation rights from a contract
    * @param contractAddress Address of the contract
    */
-  function revokeDelegateRole(
-    address contractAddress
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function revokeDelegateRole(address contractAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
     _revokeDelegateRole(contractAddress);
-  }
-
-  /**
-   * @notice Grants a role to an account
-   * @param role Role identifier
-   * @param account Address to grant the role to
-   */
-  function grantRole(
-    bytes32 role,
-    address account
-  )
-    public
-    virtual
-    override(AccessControlUpgradeable, IAccessControl)
-    onlyRole(DEFAULT_ADMIN_ROLE)
-  {
-    _addresses[role] = account;
-    _grantRole(role, account);
-  }
-
-  /**
-   * @notice Revokes a role from an account
-   * @param role Role identifier
-   * @param account Address to revoke the role from
-   */
-  function revokeRole(
-    bytes32 role,
-    address account
-  )
-    public
-    virtual
-    override(AccessControlUpgradeable, IAccessControl)
-    onlyRole(DEFAULT_ADMIN_ROLE)
-  {
-    delete _addresses[role];
-    _revokeRole(role, account);
   }
 
   /* VIEW FUNCTIONS */
 
   /**
-   * @notice Gets the number of decimals for a token
-   * @param token Address of the token
-   * @return Number of decimals
+   * @notice Checks if a contract has delegate role
+   * @param _contract Contract address to check
+   * @return Boolean indicating delegate status
    */
-  function getTokenDecimals(address token) external view returns (uint8) {
-    return _getTokenDecimals(token);
+  function hasDelegateRole(address _contract) external view override returns (bool) {
+    return _delegated[_contract];
   }
 
   /**
-   * @notice Gets the default fiat payment token address
-   * @return Address of the token
+   * @notice Checks if a payment method is allowed
+   * @param _contract Payment contract address
+   * @return Boolean indicating payment role status
    */
-  function getDefaultFiatPayment() external view override returns (address) {
-    return _getDefaultFiatPayment();
+  function hasPaymentRole(address _contract) external view override returns (bool) {
+    return _payments[_contract].isConfigured;
   }
 
   /**
-   * @notice Gets the address assigned to a role
+   * @notice Retrieves the address assigned to a specific role
    * @param role Role identifier
    * @return Address assigned to the role
    */
-  function getRoleAddress(
-    bytes32 role
-  ) external view override returns (address) {
-    return _getRoleAddress(role);
+  function getRoleAddress(bytes32 role) external view override returns (address) {
+    return _addresses[role];
   }
 
   /**
-   * @notice Checks if a token is configured for payments
-   * @param token Address of the token
-   * @return True if the token is configured
+   * @notice Retrieves the default fiat payment token address
+   * @return Address of the default fiat payment token
    */
-  function hasPaymentRole(address token) external view override returns (bool) {
-    return _hasPaymentRole(token);
-  }
-
-  /**
-   * @notice Checks if a contract has delegation rights
-   * @param contractAddress Address of the contract
-   * @return True if the contract is delegated
-   */
-  function hasDelegateRole(
-    address contractAddress
-  ) public view virtual override returns (bool) {
-    return _hasDelegateRole(contractAddress);
+  function getDefaultFiatPayment() external view override returns (address) {
+    return _defaultFiatToken;
   }
 
   /* ADMIN FUNCTIONS */
 
   /**
    * @notice Pauses the contract
-   * @dev Can only be called by the PAUSER role
    */
   function pause() external onlyRole(PAUSER) {
     _pause();
@@ -173,19 +157,18 @@ contract Roles is RolesBase, IRoles {
 
   /**
    * @notice Unpauses the contract
-   * @dev Can only be called by the PAUSER role
    */
   function unpause() external onlyRole(PAUSER) {
     _unpause();
   }
 
+  /* OVERRIDES */
+
   /**
    * @dev Authorizes an upgrade to a new implementation
    * @param newImplementation Address of the new implementation
    */
-  function _authorizeUpgrade(
-    address newImplementation
-  ) internal view override onlyRole(UPGRADER) {
+  function _authorizeUpgrade(address newImplementation) internal view override onlyRole(UPGRADER) {
     if (newImplementation == address(0)) revert InvalidContract(newImplementation);
   }
 }
