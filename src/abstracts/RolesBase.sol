@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import '../interfaces/IRoles.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
@@ -19,18 +20,6 @@ abstract contract RolesBase is
     PausableUpgradeable,
     AccessControlUpgradeable
 {
-    /* TYPES */
-
-    /**
-     * @dev Structure to store payment token configurations
-     * @param decimals Number of decimals for the token
-     * @param isConfigured Whether the token is configured
-     */
-    struct Payment {
-        uint8 decimals;
-        bool isConfigured;
-    }
-
     /* CONSTANTS */
 
     /// @notice Pauser role identifier

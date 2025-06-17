@@ -185,5 +185,7 @@ contract Roles is RolesBase, IRoles {
    */
   function _authorizeUpgrade(
     address newImplementation
-  ) internal override onlyRole(UPGRADER) {}
+  ) internal view override onlyRole(UPGRADER) {
+    if (newImplementation == address(0)) revert InvalidContract(newImplementation);
+  }
 }

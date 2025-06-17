@@ -43,8 +43,8 @@ abstract contract PaymentsBase is
     /// @dev Maps operations to their service fees
     mapping(bytes32 => uint256) internal _serviceFees;
 
-    /// @dev Maps membership IDs to their fee percentages by type
-    mapping(uint256 => uint256) internal _feePercentagesByMembership;
+    /// @dev Maps membership IDs to their fee percentages
+    mapping(uint256 => MembershipFees) internal _membershipFees;
 
     /* EVENTS */
 
@@ -89,7 +89,7 @@ abstract contract PaymentsBase is
         uint256 amount
     );
 
-      /**
+    /**
      * @dev Emitted when tokens are sent
      * @param from Address sending the tokens
      * @param to Address receiving the tokens
@@ -103,6 +103,14 @@ abstract contract PaymentsBase is
      * @param newPercentage New percentage
      */
     event FiatFeePercentageUpdated(uint256 oldPercentage, uint256 newPercentage);
+
+    /**
+     * @dev Emitted when membership fees are updated
+     * @param membershipId Membership ID
+     * @param sellerFee Seller fee percentage
+     * @param buyerFee Buyer fee percentage
+     */
+    event MembershipFeesUpdated(uint256 indexed membershipId, uint256 sellerFee, uint256 buyerFee);
 
     /* ERRORS */
 
@@ -119,19 +127,19 @@ abstract contract PaymentsBase is
     error InvalidPercentage(uint256 percentage);
 
     /// @dev Thrown when a transfer fails
-  error TransferFailed();
+    error TransferFailed();
 
-  /// @dev Thrown when the provided payment amount is insufficient
-  error InsufficientPayment(uint256 required, uint256 provided);
+    /// @dev Thrown when the provided payment amount is insufficient
+    error InsufficientPayment(uint256 required, uint256 provided);
 
-  /// @dev Thrown when an invalid payment token is used
-  error InvalidPaymentToken(address token);
+    /// @dev Thrown when an invalid payment token is used
+    error InvalidPaymentToken(address token);
 
-  /// @dev Thrown when a payment operation fails
-  error PaymentFailed(address token, uint256 amount);
+    /// @dev Thrown when a payment operation fails
+    error PaymentFailed(address token, uint256 amount);
 
-  /// @dev Thrown when an invalid token address is provided
-  error InvalidTokenAddress();
+    /// @dev Thrown when an invalid token address is provided
+    error InvalidTokenAddress();
 
     /**
      * @dev Initializes the base payment contract
@@ -230,6 +238,28 @@ abstract contract PaymentsBase is
      */
     function _setServiceFee(bytes32 operation, uint256 fee) internal virtual {
         _serviceFees[operation] = fee;
+    }
+
+    /**
+     * @notice Sets fee percentages for a membership tier
+     * @param membershipId Membership ID
+     * @param sellerFee Fee percentage for sellers
+     * @param buyerFee Fee percentage for buyers
+     */
+    function _setMembershipFees(
+        uint256 membershipId,
+        uint256 sellerFee,
+        uint256 buyerFee
+    ) internal virtual {
+        if (sellerFee > BPS) revert InvalidPercentage(sellerFee);
+        if (buyerFee > BPS) revert InvalidPercentage(buyerFee);
+
+        _membershipFees[membershipId] = MembershipFees({
+            sellerFee: sellerFee,
+            buyerFee: buyerFee
+        });
+
+        emit MembershipFeesUpdated(membershipId, sellerFee, buyerFee);
     }
 
     /* PAYMENT SPLITTING FUNCTIONS */

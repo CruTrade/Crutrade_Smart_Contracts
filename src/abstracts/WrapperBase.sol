@@ -27,8 +27,8 @@ abstract contract WrapperBase is
 
     /* STORAGE */
 
-    /// @dev Counter for wrapper IDs
-    uint256 internal _wrapperIdCounter;
+    /// @dev Next wrapper ID counter
+    uint256 internal _nextWrapperId;
 
     /// @dev Base URI for HTTPS metadata
     string internal _httpsBaseURI;
@@ -39,26 +39,9 @@ abstract contract WrapperBase is
     /// @dev Maps collections to their wrapper IDs
     mapping(bytes32 => EnumerableSet.UintSet) internal _wrappersByCollection;
 
-    /* ERRORS */
-
-    /// @dev Thrown when a wrapper is not found
-    error WrapperNotFound(uint256 wrapperId);
-
-    /// @dev Thrown when a transfer is unauthorized
-    error UnauthorizedTransfer(address from, address to);
-
-    /// @dev Thrown when a collection is invalid
-    error InvalidCollection(uint256 brandId, bytes32 collection);
-
-    /// @dev Thrown when an empty input is provided
-    error EmptyInput();
-
-    /// @dev Thrown when an invalid token is provided
-    error InvalidToken();
-
     /* EVENTS */
 
-      /**
+    /**
      * @dev Emitted when wrappers are imported
      * @param user Address of the user
      * @param importData Array of imported wrapper data
@@ -92,6 +75,26 @@ abstract contract WrapperBase is
         uint256 indexed wrapperId
     );
 
+    /* ERRORS */
+
+    /// @dev Thrown when a wrapper is not found
+    error WrapperNotFound(uint256 wrapperId);
+
+    /// @dev Thrown when a transfer is unauthorized
+    error UnauthorizedTransfer(address from, address to);
+
+    /// @dev Thrown when a collection is invalid
+    error InvalidCollection(uint256 brandId, bytes32 collection);
+
+    /// @dev Thrown when an empty input is provided
+    error EmptyInput();
+
+    /// @dev Thrown when an invalid token is provided
+    error InvalidToken();
+
+    /// @dev Thrown when a collection does not exist
+    error CollectionNotFound(bytes32 collection);
+
     /**
      * @dev Initializes the WrapperBase contract
      * @param _roles Address of the roles contract
@@ -110,6 +113,7 @@ abstract contract WrapperBase is
         __ERC721_init(name, symbol);
         __ModifiersBase_init(_roles);
         _httpsBaseURI = baseURI;
+        _nextWrapperId = 1; // Start from 1 to avoid confusion with default value
     }
 
     /* WRAPPER MANAGEMENT */
@@ -126,7 +130,7 @@ abstract contract WrapperBase is
         WrapperData calldata wrapper
     ) internal returns (uint256 wrapperId, ImportOutput memory data) {
         if (wrapper.active) revert InvalidToken();
-        wrapperId = _wrapperIdCounter++;
+        wrapperId = _nextWrapperId++;
         bytes32 collection = wrapper.collection;
 
         _wrappersById[wrapperId] = WrapperData(
@@ -204,6 +208,8 @@ abstract contract WrapperBase is
     function _getCollectionData(
         bytes32 collection
     ) internal view returns (WrapperData[] memory) {
+        if (!_isValidCollection(collection)) revert CollectionNotFound(collection);
+        
         uint256[] memory wrapperIds = _wrappersByCollection[collection].values();
         uint256 length = wrapperIds.length;
 

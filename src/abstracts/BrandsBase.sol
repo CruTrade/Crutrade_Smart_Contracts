@@ -22,8 +22,8 @@ abstract contract BrandsBase is
 {
     /* STORAGE */
 
-    /// @dev Counter for brand IDs
-    uint256 internal _brandIdCounter;
+    /// @dev Next brand ID counter
+    uint256 internal _nextBrandId;
 
     /// @dev Base URI for brand metadata
     string internal _baseURIString;
@@ -74,6 +74,7 @@ abstract contract BrandsBase is
         __ModifiersBase_init(_roles);
 
         _baseURIString = baseURI;
+        _nextBrandId = 1; // Start from 1 to avoid confusion with default value
     }
 
     /* BRAND MANAGEMENT */
@@ -86,7 +87,7 @@ abstract contract BrandsBase is
     function _register(address owner) internal returns (uint256) {
         if (owner == address(0)) revert InvalidBrandOwner(owner);
 
-        uint256 brandId = _brandIdCounter++;
+        uint256 brandId = _nextBrandId++;
         _safeMint(owner, brandId);
 
         emit BrandRegistered(owner, brandId);

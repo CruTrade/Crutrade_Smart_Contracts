@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import "./ModifiersBase.sol";
 import "./ScheduleBase.sol";
+import "../interfaces/ISales.sol";
 import "../interfaces/IPayments.sol";
 import "../interfaces/IWrappers.sol";
 import "../interfaces/IWhitelist.sol";
@@ -45,34 +46,6 @@ abstract contract SalesBase is
     /* TYPES */
 
     /**
-     * @dev Sale struct definition
-     * @param end End timestamp of the sale
-     * @param start Start timestamp of the sale
-     * @param price Sale price
-     * @param seller Address of the seller
-     * @param wrapperId ID of the wrapped NFT
-     * @param active Whether the sale is active
-     */
-    struct Sale {
-        uint256 end;
-        uint256 start;
-        uint256 price;
-        address seller;
-        uint256 wrapperId;
-        bool active;
-    }
-
-    /**
-     * @dev Date struct definition
-     * @param expireListDate Expiration date for listing
-     * @param expireUpcomeDate Upcoming expiration date
-     */
-    struct Date {
-        uint256 expireListDate;
-        uint256 expireUpcomeDate;
-    }
-
-    /**
      * @dev List outputs struct definition
      * @param wrapperId ID of the wrapped NFT
      * @param price Sale price
@@ -113,11 +86,9 @@ abstract contract SalesBase is
     /// @dev Maximum duration ID
     uint256 internal _maxDurationId;
 
-    /// @dev Current sale ID counter
-    uint256 internal _currentSaleId;
+    /// @dev Next sale ID counter
+    uint256 internal _nextSaleId;
 
-    /// @dev Contract version
-    uint256 internal _contractVersion;
     /* EVENTS */
 
     /**
@@ -201,12 +172,6 @@ abstract contract SalesBase is
      */
     event DurationSet(uint256 indexed durationId, uint256 duration);
 
-    /**
-     * @notice Emitted when the contract is upgraded
-     * @param newVersion New version number
-     */
-    event ContractUpgraded(uint256 indexed newVersion);
-
     /* ERRORS */
 
     /// @dev Thrown when an invalid sale operation is attempted
@@ -233,6 +198,12 @@ abstract contract SalesBase is
     /// @dev Thrown when an invalid sale duration is provided
     error InvalidSaleDuration(uint256 duration);
 
+    /// @dev Thrown when an invalid duration ID is provided
+    error InvalidDurationId(uint256 durationId);
+
+    /// @dev Thrown when a future timestamp is required
+    error InvalidTimestamp(uint256 timestamp);
+
     /**
      * @dev Initializes the SalesBase contract
      * @param _roles Address of the roles contract
@@ -243,7 +214,7 @@ abstract contract SalesBase is
         __ScheduleBase_init();
 
         _durations[0] = 56 days; // Default duration
-        _contractVersion = 1; // Initial version
+        _nextSaleId = 1; // Start from 1 to avoid confusion with default value
     }
 
     /* DURATION MANAGEMENT */
@@ -272,29 +243,44 @@ abstract contract SalesBase is
      * @return duration The duration in seconds
      */
     function _getDuration(uint256 durationId) internal view returns (uint256) {
-        require(durationId <= _maxDurationId, "Invalid duration ID");
+        if (durationId > _maxDurationId) revert InvalidDurationId(durationId);
         return _durations[durationId];
     }
 
     /**
-     * @notice Gets all durations
+     * @notice Gets all durations with pagination
+     * @param offset Starting index
+     * @param limit Maximum number of items to return
      * @return durationIds IDs of durations
      * @return durationValues Duration values in seconds
+     * @return total Total number of durations
      */
-    function _getAllDurations()
+    function _getAllDurationsPaginated(uint256 offset, uint256 limit)
         internal
         view
-        returns (uint256[] memory durationIds, uint256[] memory durationValues)
+        returns (
+            uint256[] memory durationIds,
+            uint256[] memory durationValues,
+            uint256 total
+        )
     {
-        durationIds = new uint256[](_maxDurationId + 1);
-        durationValues = new uint256[](_maxDurationId + 1);
+        total = _maxDurationId + 1;
 
-        for (uint256 i; i <= _maxDurationId; i++) {
-            durationIds[i] = i;
-            durationValues[i] = _durations[i];
+        if (offset >= total || limit == 0) {
+            return (new uint256[](0), new uint256[](0), total);
         }
 
-        return (durationIds, durationValues);
+        uint256 size = (offset + limit > total) ? (total - offset) : limit;
+        durationIds = new uint256[](size);
+        durationValues = new uint256[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            uint256 durationId = offset + i;
+            durationIds[i] = durationId;
+            durationValues[i] = _durations[durationId];
+        }
+
+        return (durationIds, durationValues, total);
     }
 
     /* SALE VIEW FUNCTIONS */
@@ -362,17 +348,35 @@ abstract contract SalesBase is
     }
 
     /**
-     * @notice Gets sales for a specific seller
+     * @notice Gets sales for a specific seller with pagination
      * @param seller Address of the seller
+     * @param offset Starting index
+     * @param limit Maximum number of items to return
      * @return saleIds Array of sale IDs
+     * @return total Total number of sales for the seller
      */
-    function _getSalesBySeller(address seller)
-        internal
-        view
-        returns (uint256[] memory)
-    {
+    function _getSalesBySellerPaginated(
+        address seller,
+        uint256 offset,
+        uint256 limit
+    ) internal view returns (uint256[] memory saleIds, uint256 total) {
         require(seller != address(0), "Invalid seller address");
-        return _saleIdsBySeller[seller].values();
+
+        uint256[] memory allSaleIds = _saleIdsBySeller[seller].values();
+        total = allSaleIds.length;
+
+        if (offset >= total || limit == 0) {
+            return (new uint256[](0), total);
+        }
+
+        uint256 size = (offset + limit > total) ? (total - offset) : limit;
+        saleIds = new uint256[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            saleIds[i] = allSaleIds[offset + i];
+        }
+
+        return (saleIds, total);
     }
 
     /* SALE OPERATIONS */
@@ -407,7 +411,9 @@ abstract contract SalesBase is
         // Validate input
         if (input.price == 0) revert InvalidSalePrice(input.price);
         if (input.durationId > _maxDurationId)
-            revert InvalidSaleDuration(input.durationId);
+            revert InvalidDurationId(input.durationId);
+        if (_durations[input.durationId] == 0)
+            revert InvalidDurationId(input.durationId);
 
         // Get dependent contracts
         address wrappersAddr = roles.getRoleAddress(WRAPPERS);
@@ -538,6 +544,7 @@ abstract contract SalesBase is
         if (sale.seller == address(0)) revert SaleNotFound(saleId);
         if (!sale.active) revert SaleNotActive(saleId);
         if (block.timestamp < sale.start) revert SaleNotStarted(sale.start);
+        if (block.timestamp > sale.end) revert SaleExpired(sale.end);
         if (sale.seller != seller) revert NotOwner(seller, sale.seller);
 
         // Cache values to minimize SLOADs
@@ -584,6 +591,8 @@ abstract contract SalesBase is
         if (!sale.active) revert SaleNotActive(saleId);
         if (block.timestamp < sale.end) revert SaleNotExpired(saleId);
         if (sale.seller != seller) revert NotOwner(seller, sale.seller);
+        if (nextScheduleTime <= block.timestamp)
+            revert InvalidTimestamp(nextScheduleTime);
 
         // Calculate fees
         fee = IPayments(roles.getRoleAddress(PAYMENTS)).splitServiceFee(

@@ -11,6 +11,16 @@ pragma solidity 0.8.30;
 /* TYPES */
 
 /**
+ * @dev Structure for membership-based fees
+ * @param sellerFee Fee percentage for sellers (in basis points)
+ * @param buyerFee Fee percentage for buyers (in basis points)
+ */
+struct MembershipFees {
+    uint256 sellerFee;
+    uint256 buyerFee;
+}
+
+/**
  * @dev Structure for fee configuration
  * @param name Name of the fee
  * @param percentage Percentage of the fee (in basis points)
@@ -52,9 +62,8 @@ struct TransactionFees {
  * @notice Interface for payment operations
  */
 interface IPayments {
-
     /* FUNCTIONS */
-    
+
     /**
      * @notice Calculates and processes transaction fees
      * @param erc20 Token address

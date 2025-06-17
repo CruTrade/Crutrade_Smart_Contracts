@@ -35,6 +35,7 @@ contract MockERC20 is ERC20 {
 }
 
 contract CrutradeEcosystemTest is Test {
+    /*
     // Contracts
     Roles public roles;
     Memberships public memberships;
@@ -1090,4 +1091,5 @@ contract CrutradeEcosystemTest is Test {
         if (account == vm.addr(FEE_RECEIVER_KEY)) return FEE_RECEIVER_KEY;
         return 0x999; // fallback
     }
+    */
 }

@@ -130,43 +130,6 @@ abstract contract ModifiersBase is Initializable {
   }
 
   /**
-   * @dev Modifier to verify signature with expiration
-   * @param wallet Address of the signer
-   * @param hash Hash of the message
-   * @param signature Signature to verify
-   * @param expiry Timestamp when the signature expires
-   */
-  modifier checkSignatureWithExpiry(
-    address wallet,
-    bytes32 hash,
-    bytes calldata signature,
-    uint256 expiry
-  ) {
-    // Verify timestamp has not expired
-    require(block.timestamp <= expiry, 'Signature expired');
-
-    // Create full hash including expiry
-    bytes32 fullHash = keccak256(abi.encodePacked(hash, expiry));
-
-    // Check if hash has been used before
-    if (_usedHashes[fullHash]) revert HashAlreadyUsed(fullHash);
-
-    // Recover signer address from signature
-    address recoveredSigner = ECDSA.recover(
-      MessageHashUtils.toEthSignedMessageHash(fullHash),
-      signature
-    );
-
-    // Verify signature matches expected signer
-    if (recoveredSigner != wallet)
-      revert InvalidSignature(wallet, recoveredSigner);
-
-    // Mark hash as used to prevent replay
-    _usedHashes[fullHash] = true;
-    _;
-  }
-
-  /**
    * @dev Modifier to restrict access to accounts with a specific role
    * @param role The role required to access the function
    */
@@ -237,20 +200,5 @@ abstract contract ModifiersBase is Initializable {
     );
     if (actualOwner != wallet) revert NotOwner(wallet, actualOwner);
     _;
-  }
-
-  /**
-   * @dev Helper function to verify a brand owner
-   * @param brandId ID of the brand
-   * @param claimedOwner Address claiming to be the owner
-   * @return True if the address is the brand owner
-   */
-  function _isBrandOwner(
-    uint256 brandId,
-    address claimedOwner
-  ) internal view returns (bool) {
-    IBrands brands = IBrands(roles.getRoleAddress(BRANDS));
-    if (!brands.isValidBrand(brandId)) revert InvalidBrand(brandId);
-    return brands.getBrandOwner(brandId) == claimedOwner;
   }
 }

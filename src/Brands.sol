@@ -40,7 +40,7 @@ contract Brands is BrandsBase, IBrands {
    * @param owner Owner of the brand
    * @return brandId ID of the newly created brand
    */
-  function register(address owner) external returns (uint256) {
+  function register(address owner) external onlyRole(OWNER) returns (uint256) {
     return _register(owner);
   }
 
@@ -48,7 +48,7 @@ contract Brands is BrandsBase, IBrands {
    * @notice Burns a brand token
    * @param brandId ID of the brand to burn
    */
-  function burn(uint256 brandId) external onlyRole(OPERATIONAL) {
+  function burn(uint256 brandId) external onlyRole(OWNER) {
     _unregister(brandId);
   }
 

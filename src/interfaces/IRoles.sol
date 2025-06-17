@@ -1,7 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import '@openzeppelin/contracts/access/IAccessControl.sol';
+import "@openzeppelin/contracts/access/IAccessControl.sol";
+
+/* TYPES */
+
+/**
+ * @dev Structure to store payment token configurations
+ * @param decimals Number of decimals for the token
+ * @param isConfigured Whether the token is configured
+ */
+struct Payment {
+    uint8 decimals;
+    bool isConfigured;
+}
 
 /**
  * @title IRoles

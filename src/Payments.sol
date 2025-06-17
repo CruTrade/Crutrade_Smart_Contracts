@@ -56,20 +56,9 @@ contract Payments is PaymentsBase {
    * @dev Initializes the fee structure for different membership levels
    */
   function _initializeFees() private {
-    uint256[] memory fromFees = new uint256[](4);
-    uint256[] memory toFees = new uint256[](4);
-
-    fromFees[0] = 600; // 6%
-    fromFees[1] = 100; // 1%
-
-    toFees[0] = 400; // 4%
-    toFees[1] = 100; // 1%
-
     // Set fee percentages for first 2 membership tiers
-    for (uint256 i = 0; i < 2; i++) {
-      _feePercentagesByMembership[i] = fromFees[i];
-      _feePercentagesByMembership[i + 100] = toFees[i]; // Using offset for to-type fees
-    }
+    _setMembershipFees(0, 600, 400); // 6% seller, 4% buyer
+    _setMembershipFees(1, 100, 100); // 1% seller, 1% buyer
   }
 
   /* FEE MANAGEMENT FUNCTIONS */
@@ -138,24 +127,18 @@ contract Payments is PaymentsBase {
   }
 
   /**
-   * @notice Sets fee percentage for a membership tier
+   * @notice Sets fee percentages for a membership tier
    * @param membershipId Membership ID
-   * @param isToFee Whether this is a fee for receiving (true) or sending (false)
-   * @param percentage New fee percentage
+   * @param sellerFee Fee percentage for sellers
+   * @param buyerFee Fee percentage for buyers
    * @dev Can only be called by an account with the OWNER role
    */
-  function setFeePercentage(
+  function setMembershipFees(
     uint256 membershipId,
-    bool isToFee,
-    uint256 percentage
+    uint256 sellerFee,
+    uint256 buyerFee
   ) external onlyRole(OWNER) {
-    if (percentage > BPS) revert InvalidPercentage(percentage);
-
-    if (isToFee) {
-      _feePercentagesByMembership[membershipId + 100] = percentage; // Use offset for to-fees
-    } else {
-      _feePercentagesByMembership[membershipId] = percentage;
-    }
+    _setMembershipFees(membershipId, sellerFee, buyerFee);
   }
 
   /* PAYMENT OPERATIONS */
@@ -265,11 +248,15 @@ contract Payments is PaymentsBase {
     uint256[] memory memberships = IMemberships(membershipContract)
       .getMemberships(users);
 
+    // Get membership fees
+    MembershipFees memory fromMembershipFees = _membershipFees[memberships[0]];
+    MembershipFees memory toMembershipFees = _membershipFees[memberships[1]];
+
     // Calculate percentage-based fees
     (uint256 fromFee, uint256 toFee) = _calculatePercentageFees(
       amount,
-      _feePercentagesByMembership[memberships[0]],
-      _feePercentagesByMembership[memberships[1] + 100] // Using offset for to-type fees
+      fromMembershipFees.sellerFee,
+      toMembershipFees.buyerFee
     );
 
     // Create TransactionFees structure
@@ -324,20 +311,16 @@ contract Payments is PaymentsBase {
   }
 
   /**
-   * @notice Gets the fee percentage for a membership tier
+   * @notice Gets the fee percentages for a membership tier
    * @param membershipId Membership ID
-   * @param isToFee Whether to get the "to" fee (true) or "from" fee (false)
-   * @return Fee percentage
+   * @return sellerFee Fee percentage for sellers
+   * @return buyerFee Fee percentage for buyers
    */
-  function getFeePercentage(
-    uint256 membershipId,
-    bool isToFee
-  ) external view returns (uint256) {
-    if (isToFee) {
-      return _feePercentagesByMembership[membershipId + 100]; // Use offset for to-fees
-    } else {
-      return _feePercentagesByMembership[membershipId];
-    }
+  function getMembershipFees(
+    uint256 membershipId
+  ) external view returns (uint256 sellerFee, uint256 buyerFee) {
+    MembershipFees memory fees = _membershipFees[membershipId];
+    return (fees.sellerFee, fees.buyerFee);
   }
 
   /* ADMIN FUNCTIONS */
