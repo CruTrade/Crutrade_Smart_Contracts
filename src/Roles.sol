@@ -169,4 +169,32 @@ contract Roles is RolesBase, IRoles {
   function _authorizeUpgrade(address newImplementation) internal view override onlyRole(UPGRADER) {
     if (newImplementation == address(0)) revert InvalidContract(newImplementation);
   }
+
+  /* ROLE MANAGEMENT */
+
+  /**
+   * @dev Override _grantRole to also update the _addresses mapping
+   * @param role Role to grant
+   * @param account Account to grant the role to
+   * @return bool Whether the role was granted
+   */
+  function _grantRole(bytes32 role, address account) internal virtual override returns (bool) {
+    bool result = super._grantRole(role, account);
+    _addresses[role] = account;
+    return result;
+  }
+
+  /**
+   * @dev Override _revokeRole to also clear the _addresses mapping
+   * @param role Role to revoke
+   * @param account Account to revoke the role from
+   * @return bool Whether the role was revoked
+   */
+  function _revokeRole(bytes32 role, address account) internal virtual override returns (bool) {
+    bool result = super._revokeRole(role, account);
+    if (!hasRole(role, account)) {
+      _addresses[role] = address(0);
+    }
+    return result;
+  }
 }

@@ -133,7 +133,7 @@ contract CrutradeEcosystemTest is Test {
         ERC1967Proxy membershipsProxy = new ERC1967Proxy(address(membershipsImpl), membershipsInitData);
         memberships = Memberships(address(membershipsProxy));
 
-        bytes memory paymentsInitData = abi.encodeWithSelector(Payments.initialize.selector, address(roles));
+        bytes memory paymentsInitData = abi.encodeWithSelector(Payments.initialize.selector, address(roles), treasury, address(memberships));
         ERC1967Proxy paymentsProxy = new ERC1967Proxy(address(paymentsImpl), paymentsInitData);
         payments = Payments(address(paymentsProxy));
 
@@ -145,7 +145,7 @@ contract CrutradeEcosystemTest is Test {
         ERC1967Proxy whitelistProxy = new ERC1967Proxy(address(whitelistImpl), whitelistInitData);
         whitelist = Whitelist(address(whitelistProxy));
 
-        bytes memory wrappersInitData = abi.encodeWithSelector(Wrappers.initialize.selector, address(roles));
+        bytes memory wrappersInitData = abi.encodeWithSelector(Wrappers.initialize.selector, address(roles), address(whitelist));
         ERC1967Proxy wrappersProxy = new ERC1967Proxy(address(wrappersImpl), wrappersInitData);
         wrappers = Wrappers(address(wrappersProxy));
 
