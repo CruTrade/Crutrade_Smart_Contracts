@@ -24,10 +24,10 @@ abstract contract RolesBase is
 
     /// @notice Pauser role identifier
     bytes32 internal constant PAUSER = keccak256('PAUSER');
-    
+
     /// @notice Upgrader role identifier
     bytes32 internal constant UPGRADER = keccak256('UPGRADER');
-    
+
     /// @notice Fiat role identifier
     bytes32 internal constant FIAT = keccak256('FIAT');
 

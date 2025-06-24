@@ -12,7 +12,7 @@ import './interfaces/IRoles.sol';
  * @custom:security-contact security@crutrade.io
  */
 contract Roles is RolesBase, IRoles {
-  
+
   /* INITIALIZATION */
 
   /**
@@ -26,7 +26,7 @@ contract Roles is RolesBase, IRoles {
    * @notice Initializes the contract with complete ecosystem setup
    * @dev Sets up all roles, delegates, and payment configuration in one call
    * @param defaultAdmin Address of the default admin (multisig)
-   * @param usdtAddress Address of the USDT token for payments
+   * @param usdcAddress Address of the USDC token for payments
    * @param operationalAddresses Array of addresses to grant OPERATIONAL role
    * @param contractAddresses Array of contract addresses for role assignment
    * @param userRoles Array of role hashes to grant to defaultAdmin
@@ -35,7 +35,7 @@ contract Roles is RolesBase, IRoles {
    */
   function initialize(
     address defaultAdmin,
-    address usdtAddress,
+    address usdcAddress,
     address[] calldata operationalAddresses,
     address[] calldata contractAddresses,
     bytes32[] calldata userRoles,
@@ -43,33 +43,33 @@ contract Roles is RolesBase, IRoles {
     uint256[] calldata delegateIndices
   ) public initializer {
     __RolesBase_init(defaultAdmin);
-    
+
     // Grant all user roles to admin (FIAT, OWNER, PAUSER, UPGRADER, TREASURY)
     for (uint256 i = 0; i < userRoles.length; i++) {
       _grantRole(userRoles[i], defaultAdmin);
     }
-    
+
     // Grant operational roles to specified addresses
     bytes32 operationalRole = keccak256('OPERATIONAL');
     for (uint256 i = 0; i < operationalAddresses.length; i++) {
       _grantRole(operationalRole, operationalAddresses[i]);
     }
-    
+
     // Grant delegate roles to contracts that need them (payments, sales, wrappers)
     for (uint256 i = 0; i < delegateIndices.length; i++) {
       if (delegateIndices[i] < contractAddresses.length) {
         _grantDelegateRole(contractAddresses[delegateIndices[i]]);
       }
     }
-    
+
     // Grant contract-specific roles (BRANDS, WRAPPERS, WHITELIST, etc.)
     for (uint256 i = 0; i < contractAddresses.length && i < contractRoles.length; i++) {
       _grantRole(contractRoles[i], contractAddresses[i]);
     }
-    
-    // Configure USDT as payment token with 6 decimals
-    _setPayment(usdtAddress, 6);
-    _setDefaultFiatToken(usdtAddress);
+
+    // Configure USDC as payment token with 6 decimals
+    _setPayment(usdcAddress, 6);
+    _setDefaultFiatToken(usdcAddress);
   }
 
   /* PAYMENT CONFIGURATION */
@@ -90,8 +90,6 @@ contract Roles is RolesBase, IRoles {
   function setDefaultFiatToken(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
     _setDefaultFiatToken(token);
   }
-
-  /* ROLE MANAGEMENT */
 
   /**
    * @notice Grants delegation rights to a contract
@@ -170,5 +168,33 @@ contract Roles is RolesBase, IRoles {
    */
   function _authorizeUpgrade(address newImplementation) internal view override onlyRole(UPGRADER) {
     if (newImplementation == address(0)) revert InvalidContract(newImplementation);
+  }
+
+  /* ROLE MANAGEMENT */
+
+  /**
+   * @dev Override _grantRole to also update the _addresses mapping
+   * @param role Role to grant
+   * @param account Account to grant the role to
+   * @return bool Whether the role was granted
+   */
+  function _grantRole(bytes32 role, address account) internal virtual override returns (bool) {
+    bool result = super._grantRole(role, account);
+    _addresses[role] = account;
+    return result;
+  }
+
+  /**
+   * @dev Override _revokeRole to also clear the _addresses mapping
+   * @param role Role to revoke
+   * @param account Account to revoke the role from
+   * @return bool Whether the role was revoked
+   */
+  function _revokeRole(bytes32 role, address account) internal virtual override returns (bool) {
+    bool result = super._revokeRole(role, account);
+    if (!hasRole(role, account)) {
+      _addresses[role] = address(0);
+    }
+    return result;
   }
 }

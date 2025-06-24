@@ -8,60 +8,57 @@ pragma solidity 0.8.30;
  * @author Crutrade Team
  */
 
-/* TYPES */
-
-/**
- * @dev Structure for membership-based fees
- * @param sellerFee Fee percentage for sellers (in basis points)
- * @param buyerFee Fee percentage for buyers (in basis points)
- */
-struct MembershipFees {
-    uint256 sellerFee;
-    uint256 buyerFee;
-}
-
-/**
- * @dev Structure for fee configuration
- * @param name Name of the fee
- * @param percentage Percentage of the fee (in basis points)
- * @param wallet Wallet address to receive the fee
- */
-struct Fee {
-    bytes32 name;
-    uint256 percentage;
-    address wallet;
-}
-
-/**
- * @dev Structure for service fee
- * @param operation Type of operation
- * @param serviceFees Amount of service fees
- * @param fiatFees Amount of fiat fees
- */
-struct ServiceFee {
-    bytes32 operation;
-    uint256 serviceFees;
-    uint256 fiatFees;
-}
-
-/**
- * @dev Structure for transaction fees
- * @param fromFee Fee for the sender
- * @param toFee Fee for the receiver
- * @param serviceFee Service fee details
- * @param fees Array of fee configurations
- */
-struct TransactionFees {
-    uint256 fromFee;
-    uint256 toFee;
-    ServiceFee serviceFee;
-    Fee[] fees;
-}
-
-/**
- * @notice Interface for payment operations
- */
 interface IPayments {
+    /* TYPES */
+
+    /**
+     * @dev Structure for membership-based fees
+     * @param sellerFee Fee percentage for sellers (in basis points)
+     * @param buyerFee Fee percentage for buyers (in basis points)
+     */
+    struct MembershipFees {
+        uint256 sellerFee;
+        uint256 buyerFee;
+    }
+
+    /**
+     * @dev Structure for fee configuration
+     * @param name Name of the fee
+     * @param percentage Percentage of the fee (in basis points)
+     * @param wallet Wallet address to receive the fee
+     */
+    struct Fee {
+        bytes32 name;
+        uint256 percentage;
+        address wallet;
+    }
+
+    /**
+     * @dev Structure for service fee
+     * @param operation Type of operation
+     * @param serviceFees Amount of service fees
+     * @param fiatFees Amount of fiat fees
+     */
+    struct ServiceFee {
+        bytes32 operation;
+        uint256 serviceFees;
+        uint256 fiatFees;
+    }
+
+    /**
+     * @dev Structure for transaction fees
+     * @param fromFee Fee for the sender
+     * @param toFee Fee for the receiver
+     * @param serviceFee Service fee details
+     * @param fees Array of fee configurations
+     */
+    struct TransactionFees {
+        uint256 fromFee;
+        uint256 toFee;
+        ServiceFee serviceFee;
+        Fee[] fees;
+    }
+
     /* FUNCTIONS */
 
     /**
