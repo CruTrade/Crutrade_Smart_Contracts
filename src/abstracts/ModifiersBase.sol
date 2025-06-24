@@ -145,7 +145,7 @@ abstract contract ModifiersBase is Initializable {
    */
   modifier onlyDelegatedRole() {
     address sender = msg.sender;
-    if (!roles.hasDelegateRole(sender) && sender.code.length > 0)
+    if (!(roles.hasDelegateRole(sender) && sender.code.length > 0))
       revert NotAllowedDelegate(sender);
     _;
   }
