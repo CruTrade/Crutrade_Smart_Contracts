@@ -28,14 +28,14 @@ contract MockERC20 is ERC20 {
     constructor() ERC20("Mock Token", "MOCK") {
         _mint(msg.sender, 1000000 * 10**18);
     }
-    
+
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
 }
 
 contract CrutradeEcosystemTest is Test {
-    /*
+
     // Contracts
     Roles public roles;
     Memberships public memberships;
@@ -49,12 +49,12 @@ contract CrutradeEcosystemTest is Test {
 
     // Test addresses - usando vm.addr() per avere corrispondenza con private keys
     uint256 constant ADMIN_KEY = 0x1;
-    uint256 constant OPERATIONAL_KEY = 0x2;  
+    uint256 constant OPERATIONAL_KEY = 0x2;
     uint256 constant SELLER_KEY = 0x3;
     uint256 constant BUYER_KEY = 0x4;
     uint256 constant TREASURY_KEY = 0x5;
     uint256 constant FEE_RECEIVER_KEY = 0x6;
-    
+
     address public admin = vm.addr(ADMIN_KEY);
     address public operational = vm.addr(OPERATIONAL_KEY);
     address public seller = vm.addr(SELLER_KEY);
@@ -83,11 +83,11 @@ contract CrutradeEcosystemTest is Test {
 
     function setUp() public {
         vm.startPrank(admin);
-        
+
         // Deploy mock tokens
         mockToken = new MockERC20();
         fiatToken = new MockERC20();
-        
+
         // Deploy implementation contracts
         Roles rolesImpl = new Roles();
         Memberships membershipsImpl = new Memberships();
@@ -96,66 +96,88 @@ contract CrutradeEcosystemTest is Test {
         Whitelist whitelistImpl = new Whitelist();
         Wrappers wrappersImpl = new Wrappers();
         Brands brandsImpl = new Brands();
-        
+
         // Deploy proxies and initialize
-        bytes memory rolesInitData = abi.encodeWithSelector(Roles.initialize.selector, admin);
+        bytes32[] memory userRoles = new bytes32[](4);
+        userRoles[0] = OWNER;
+        userRoles[1] = OPERATIONAL;
+        userRoles[2] = TREASURY;
+        userRoles[3] = FIAT;
+
+        address[] memory userAddresses = new address[](4);
+        userAddresses[0] = admin;
+        userAddresses[1] = operational;
+        userAddresses[2] = treasury;
+        userAddresses[3] = treasury;
+
+        bytes memory rolesInitData = abi.encodeWithSelector(
+            Roles.initialize.selector,
+            admin,
+            address(mockToken),
+            _toAddressArray(operational), // operationalAddresses - add operational address
+            new address[](0), // contractAddresses - empty for now
+            userRoles,
+            new bytes32[](0), // contractRoles - empty for now
+            new uint256[](0)  // delegateIndices - empty for now
+        );
         ERC1967Proxy rolesProxy = new ERC1967Proxy(address(rolesImpl), rolesInitData);
         roles = Roles(address(rolesProxy));
-        
+
         // Setup payment configurations
         roles.setPayment(address(mockToken), 18);
         roles.setPayment(address(fiatToken), 18);
         roles.setDefaultFiatToken(address(fiatToken));
-        
+
         // Deploy other contract proxies
         bytes memory membershipsInitData = abi.encodeWithSelector(Memberships.initialize.selector, address(roles));
         ERC1967Proxy membershipsProxy = new ERC1967Proxy(address(membershipsImpl), membershipsInitData);
         memberships = Memberships(address(membershipsProxy));
-        
+
         bytes memory paymentsInitData = abi.encodeWithSelector(Payments.initialize.selector, address(roles));
         ERC1967Proxy paymentsProxy = new ERC1967Proxy(address(paymentsImpl), paymentsInitData);
         payments = Payments(address(paymentsProxy));
-        
+
         bytes memory salesInitData = abi.encodeWithSelector(Sales.initialize.selector, address(roles));
         ERC1967Proxy salesProxy = new ERC1967Proxy(address(salesImpl), salesInitData);
         sales = Sales(address(salesProxy));
-        
+
         bytes memory whitelistInitData = abi.encodeWithSelector(Whitelist.initialize.selector, address(roles));
         ERC1967Proxy whitelistProxy = new ERC1967Proxy(address(whitelistImpl), whitelistInitData);
         whitelist = Whitelist(address(whitelistProxy));
-        
+
         bytes memory wrappersInitData = abi.encodeWithSelector(Wrappers.initialize.selector, address(roles));
         ERC1967Proxy wrappersProxy = new ERC1967Proxy(address(wrappersImpl), wrappersInitData);
         wrappers = Wrappers(address(wrappersProxy));
-        
-        bytes memory brandsInitData = abi.encodeWithSelector(Brands.initialize.selector, address(roles));
+
+        bytes memory brandsInitData = abi.encodeWithSelector(Brands.initialize.selector, address(roles), admin);
         ERC1967Proxy brandsProxy = new ERC1967Proxy(address(brandsImpl), brandsInitData);
         brands = Brands(address(brandsProxy));
-        
-        // Setup roles
-        roles.grantRole(OWNER, admin);
-        roles.grantRole(OPERATIONAL, operational);
-        roles.grantRole(TREASURY, treasury);
-        roles.grantRole(FIAT, treasury);
+
+        // Setup roles - now properly configured
+        // The OPERATIONAL role is already granted to operational address in initialize
+        // The OWNER, TREASURY, and FIAT roles are granted to admin in initialize
         roles.grantRole(WHITELIST, address(whitelist));
         roles.grantRole(WRAPPERS, address(wrappers));
         roles.grantRole(BRANDS, address(brands));
         roles.grantRole(MEMBERSHIPS, address(memberships));
         roles.grantRole(PAYMENTS, address(payments));
-        
+
+        // Grant TREASURY role to treasury address (needed for fee operations)
+        roles.grantRole(TREASURY, treasury);
+
         // Grant delegate roles
         roles.grantDelegateRole(address(sales));
         roles.grantDelegateRole(address(wrappers));
-        
+
         // La fee TREASURY è già al 100% nell'initialize, non aggiungo altre fee per ora
         // per evitare di superare il limite
-        
+
         // Setup service fees for operations
         payments.setServiceFee(LIST, 10 * 10**18);
         payments.setServiceFee(BUY, 5 * 10**18);
         payments.setServiceFee(WITHDRAW, 2 * 10**18);
         payments.setServiceFee(RENEW, 8 * 10**18);
-        
+
         // Setup duration for sales
         uint256[] memory durationIds = new uint256[](3);
         uint256[] memory durations = new uint256[](3);
@@ -166,12 +188,12 @@ contract CrutradeEcosystemTest is Test {
         durations[1] = 1 days;
         durations[2] = 30 days;
         sales.setDurations(durationIds, durations);
-        
+
         // Mint tokens to test addresses
         mockToken.mint(seller, 100000 * 10**18);
         mockToken.mint(buyer, 100000 * 10**18);
         fiatToken.mint(treasury, 100000 * 10**18);
-        
+
         vm.stopPrank();
     }
 
@@ -181,86 +203,86 @@ contract CrutradeEcosystemTest is Test {
         assertTrue(roles.hasRole(roles.DEFAULT_ADMIN_ROLE(), admin));
         assertTrue(roles.hasRole(OWNER, admin));
         assertTrue(roles.hasRole(OPERATIONAL, operational));
-        assertEq(roles.getRoleAddress(TREASURY), treasury);
+        assertTrue(roles.hasRole(TREASURY, treasury)); // TREASURY role should be granted to treasury address
         assertEq(roles.getDefaultFiatPayment(), address(fiatToken));
         assertTrue(roles.hasPaymentRole(address(mockToken)));
     }
 
     function test_MembershipManagement() public {
         vm.startPrank(operational);
-        
+
         // Test single membership assignment
         address[] memory members = new address[](1);
         members[0] = seller;
         memberships.setMemberships(members, 1);
-        
+
         assertEq(memberships.getMembership(seller), 1);
-        
+
         // Test batch membership assignment
         address[] memory batchMembers = new address[](2);
         batchMembers[0] = buyer;
         batchMembers[1] = makeAddr("user3");
         memberships.setMemberships(batchMembers, 2);
-        
+
         assertEq(memberships.getMembership(buyer), 2);
         assertEq(memberships.getMembership(makeAddr("user3")), 2);
-        
+
         // Test membership revocation
         memberships.revokeMembership(seller);
         assertEq(memberships.getMembership(seller), 0);
-        
+
         vm.stopPrank();
     }
 
     function test_WhitelistManagement() public {
         vm.startPrank(operational);
-        
+
         // Test adding to whitelist
         address[] memory users = new address[](2);
         users[0] = seller;
         users[1] = buyer;
         whitelist.addToWhitelist(users);
-        
+
         assertTrue(whitelist.isWhitelisted(seller));
         assertTrue(whitelist.isWhitelisted(buyer));
-        
+
         // Test removing from whitelist
         address[] memory removeUsers = new address[](1);
         removeUsers[0] = seller;
         whitelist.removeFromWhitelist(removeUsers);
-        
+
         assertFalse(whitelist.isWhitelisted(seller));
         assertTrue(whitelist.isWhitelisted(buyer));
-        
+
         vm.stopPrank();
     }
 
     function test_BrandManagement() public {
-        vm.startPrank(operational);
-        
+        vm.startPrank(admin);
+
         uint256 brandId = brands.register(seller);
-        
+
         assertTrue(brands.isValidBrand(brandId));
         assertEq(brands.getBrandOwner(brandId), seller);
         assertEq(brands.ownerOf(brandId), seller);
-        
+
         // Test brand burning
         brands.burn(brandId);
         assertFalse(brands.isValidBrand(brandId));
-        
+
         vm.stopPrank();
     }
 
     function test_WrapperImportExport() public {
         // Setup
-        vm.startPrank(operational);
+        vm.startPrank(admin);
         address[] memory users = new address[](1);
         users[0] = seller;
         whitelist.addToWhitelist(users);
-        
+
         uint256 brandId = brands.register(seller);
         vm.stopPrank();
-        
+
         // Import wrapper
         vm.startPrank(operational);
         IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
@@ -273,208 +295,208 @@ contract CrutradeEcosystemTest is Test {
             collection: keccak256("TEST_COLLECTION"),
             active: false
         });
-        
+
         wrappers.imports(seller, wrapperData);
-        
+
         // Verify wrapper was imported
-        IWrappers.WrapperData memory imported = wrappers.getWrapperData(0);
+        IWrappers.WrapperData memory imported = wrappers.getWrapperData(1);
         assertEq(imported.metaKey, "item_001");
         assertEq(imported.tokenId, 1);
         assertEq(imported.brandId, brandId);
         assertTrue(imported.active);
-        assertEq(wrappers.ownerOf(0), seller);
-        
+        assertEq(wrappers.ownerOf(1), seller);
+
         // Export wrapper
         uint256[] memory wrapperIds = new uint256[](1);
-        wrapperIds[0] = 0;
+        wrapperIds[0] = 1;
         wrappers.exports(seller, wrapperIds);
-        
+
         // Verify wrapper was exported (deactivated)
-        IWrappers.WrapperData memory exported = wrappers.getWrapperData(0);
+        IWrappers.WrapperData memory exported = wrappers.getWrapperData(1);
         assertFalse(exported.active);
-        
+
         vm.stopPrank();
     }
 
     function test_ListingFlow() public {
         // Setup prerequisites
         (uint256 wrapperId,) = _setupWrapperForSale();
-        
+
         // Setup approvals
         vm.prank(seller);
         mockToken.approve(address(payments), type(uint256).max);
         vm.prank(treasury);
         fiatToken.approve(address(payments), type(uint256).max);
-        
+
         // List item for sale
         vm.startPrank(operational);
         bytes32 listHash = keccak256(abi.encodePacked("list", block.timestamp));
         bytes memory listSig = _signHash(listHash, seller);
-        
+
         SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
         listInputs[0] = SalesBase.ListInputs({
             price: 1000 * 10**18,
             wrapperId: wrapperId,
             durationId: 0
         });
-        
+
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
-        
+
         // Verify listing
-        SalesBase.Sale memory sale = sales.getSale(0);
+        ISales.Sale memory sale = sales.getSale(0);
         assertEq(sale.price, 1000 * 10**18);
         assertEq(sale.seller, seller);
         assertEq(sale.wrapperId, wrapperId);
         assertTrue(sale.active);
         assertEq(wrappers.ownerOf(wrapperId), address(sales)); // NFT transferred to sales contract
-        
+
         vm.stopPrank();
     }
 
     function test_PurchaseFlow() public {
         // Setup and list item
         uint256 saleId = _setupAndListItem();
-        
+
         // Assicurati che buyer sia whitelisted
         vm.startPrank(operational);
         address[] memory buyerArray = new address[](1);
         buyerArray[0] = buyer;
         whitelist.addToWhitelist(buyerArray);
         vm.stopPrank();
-        
+
         // Setup buyer approvals
         vm.prank(buyer);
         mockToken.approve(address(payments), type(uint256).max);
-        
+
         // Fast forward to sale start time
-        SalesBase.Sale memory sale = sales.getSale(saleId);
+        ISales.Sale memory sale = sales.getSale(saleId);
         if (block.timestamp < sale.start) {
             vm.warp(sale.start + 1);
         }
-        
+
         // Record balances before purchase
         uint256 buyerBalanceBefore = mockToken.balanceOf(buyer);
         uint256 sellerBalanceBefore = mockToken.balanceOf(seller);
         uint256 feeReceiverBalanceBefore = mockToken.balanceOf(feeReceiver);
-        
+
         // Buy item
         vm.startPrank(operational);
         bytes32 buyHash = keccak256(abi.encodePacked("buy", block.timestamp));
         bytes memory buySig = _signHash(buyHash, buyer);
-        
+
         uint256[] memory saleIds = new uint256[](1);
         saleIds[0] = saleId;
-        
+
         sales.buy(buyer, buyHash, buySig, address(mockToken), saleIds);
-        
+
         // Verify purchase
-        SalesBase.Sale memory soldSale = sales.getSale(saleId);
+        ISales.Sale memory soldSale = sales.getSale(saleId);
         assertFalse(soldSale.active); // Sale should be inactive
         assertEq(wrappers.ownerOf(soldSale.wrapperId), buyer); // NFT transferred to buyer
-        
+
         // Verify fee distribution occurred (con solo treasury fee al 100%)
         assertTrue(mockToken.balanceOf(buyer) < buyerBalanceBefore);
         assertTrue(mockToken.balanceOf(seller) > sellerBalanceBefore);
         // treasury riceve le fee invece di feeReceiver
         assertTrue(mockToken.balanceOf(treasury) > 0 || mockToken.balanceOf(feeReceiver) >= feeReceiverBalanceBefore);
-        
+
         vm.stopPrank();
     }
 
     function test_WithdrawFlow() public {
         // Setup and list item
         uint256 saleId = _setupAndListItem();
-        
+
         // Fast forward to sale start time
-        SalesBase.Sale memory sale = sales.getSale(saleId);
+        ISales.Sale memory sale = sales.getSale(saleId);
         if (block.timestamp < sale.start) {
             vm.warp(sale.start + 1);
         }
-        
+
         // Setup seller approvals for service fees
         vm.prank(seller);
         mockToken.approve(address(payments), type(uint256).max);
-        
+
         // Get sale info before withdrawal
-        SalesBase.Sale memory saleBeforeWithdraw = sales.getSale(saleId);
+        ISales.Sale memory saleBeforeWithdraw = sales.getSale(saleId);
         uint256 wrapperId = saleBeforeWithdraw.wrapperId;
-        
+
         // Withdraw item
         vm.startPrank(operational);
         bytes32 withdrawHash = keccak256(abi.encodePacked("withdraw", block.timestamp));
         bytes memory withdrawSig = _signHash(withdrawHash, seller);
-        
+
         uint256[] memory saleIds = new uint256[](1);
         saleIds[0] = saleId;
-        
+
         sales.withdraw(seller, withdrawHash, withdrawSig, address(mockToken), saleIds);
-        
+
         // Verify withdrawal - sale should be deleted/inactive
         vm.expectRevert(); // Should revert as sale no longer exists
         sales.getSale(saleId);
-        
+
         // Verify NFT returned to seller
         assertEq(wrappers.ownerOf(wrapperId), seller);
-        
+
         vm.stopPrank();
     }
 
     function test_RenewFlow() public {
         // Setup and list item
         uint256 saleId = _setupAndListItem();
-        
+
         // Fast forward time to make the sale expire
-        SalesBase.Sale memory sale = sales.getSale(saleId);
+        ISales.Sale memory sale = sales.getSale(saleId);
         vm.warp(sale.end + 1);
-        
+
         // Setup seller approvals for service fees
         vm.prank(seller);
         mockToken.approve(address(payments), type(uint256).max);
-        
+
         // Renew item
         vm.startPrank(operational);
         bytes32 renewHash = keccak256(abi.encodePacked("renew", block.timestamp));
         bytes memory renewSig = _signHash(renewHash, seller);
-        
+
         uint256[] memory saleIds = new uint256[](1);
         saleIds[0] = saleId;
-        
+
         sales.renew(seller, renewHash, renewSig, address(mockToken), saleIds);
-        
+
         // Verify renewal
-        SalesBase.Sale memory renewedSale = sales.getSale(saleId);
+        ISales.Sale memory renewedSale = sales.getSale(saleId);
         assertTrue(renewedSale.active);
         assertTrue(renewedSale.start > sale.start); // New start time
         assertTrue(renewedSale.end > sale.end); // New end time
-        
+
         vm.stopPrank();
     }
 
     function test_PaymentFeeCalculation() public {
         // Setup memberships with different fee structures
         vm.startPrank(admin);
-        payments.setFeePercentage(1, false, 300); // 3% for sending (membership 1)
-        payments.setFeePercentage(1, true, 200);  // 2% for receiving (membership 1)
-        payments.setFeePercentage(2, false, 100); // 1% for sending (membership 2)
-        payments.setFeePercentage(2, true, 50);   // 0.5% for receiving (membership 2)
+        payments.setMembershipFees(1, 300, 200);
+        payments.setMembershipFees(2, 100, 50);
         vm.stopPrank();
-        
+
         // Check fee percentages
-        assertEq(payments.getFeePercentage(1, false), 300);
-        assertEq(payments.getFeePercentage(1, true), 200);
-        assertEq(payments.getFeePercentage(2, false), 100);
-        assertEq(payments.getFeePercentage(2, true), 50);
+        (uint256 sellerFee, uint256 buyerFee) = payments.getMembershipFees(1);
+        assertEq(sellerFee, 300);
+        assertEq(buyerFee, 200);
+        (sellerFee, buyerFee) = payments.getMembershipFees(2);
+        assertEq(sellerFee, 100);
+        assertEq(buyerFee, 50);
     }
 
     function test_ScheduleManagement() public {
         vm.startPrank(admin);
-        
+
         // Set multiple schedules
         uint256[] memory scheduleIds = new uint256[](2);
         uint8[] memory daysOfWeek = new uint8[](2);
         uint8[] memory hoursValue = new uint8[](2);
         uint8[] memory minutesValue = new uint8[](2);
-        
+
         scheduleIds[0] = 1;
         scheduleIds[1] = 2;
         daysOfWeek[0] = 1; // Monday
@@ -483,45 +505,45 @@ contract CrutradeEcosystemTest is Test {
         hoursValue[1] = 15;
         minutesValue[0] = 30;
         minutesValue[1] = 0;
-        
+
         sales.setSchedules(scheduleIds, daysOfWeek, hoursValue, minutesValue);
-        
+
         // Verify schedules
         (uint8 day, uint8 hour, uint8 minute, bool active) = sales.getSchedule(1);
         assertEq(day, 1);
         assertEq(hour, 10);
         assertEq(minute, 30);
         assertTrue(active);
-        
+
         // Remove schedule
         uint256[] memory removeIds = new uint256[](1);
         removeIds[0] = 1;
         sales.removeSchedules(removeIds);
-        
+
         (,, , bool stillActive) = sales.getSchedule(1);
         assertFalse(stillActive);
-        
+
         vm.stopPrank();
     }
 
     function test_DurationManagement() public {
         vm.startPrank(admin);
-        
+
         // Set custom durations
         uint256[] memory durationIds = new uint256[](2);
         uint256[] memory durations = new uint256[](2);
-        
+
         durationIds[0] = 10;
         durationIds[1] = 11;
         durations[0] = 12 hours;
         durations[1] = 3 days;
-        
+
         sales.setDurations(durationIds, durations);
-        
+
         // Verify durations
         assertEq(sales.getDuration(10), 12 hours);
         assertEq(sales.getDuration(11), 3 days);
-        
+
         vm.stopPrank();
     }
 
@@ -530,12 +552,12 @@ contract CrutradeEcosystemTest is Test {
     function testFuzz_MembershipAssignment(uint256 membershipId, address user) public {
         vm.assume(user != address(0));
         vm.assume(membershipId > 0 && membershipId < type(uint256).max);
-        
+
         vm.startPrank(operational);
         address[] memory members = new address[](1);
         members[0] = user;
         memberships.setMemberships(members, membershipId);
-        
+
         assertEq(memberships.getMembership(user), membershipId);
         vm.stopPrank();
     }
@@ -543,72 +565,74 @@ contract CrutradeEcosystemTest is Test {
     function testFuzz_FeePercentages(uint256 membershipId, uint256 percentage) public {
         vm.assume(membershipId > 0 && membershipId < 1000);
         vm.assume(percentage <= 10000); // Max 100%
-        
+
         vm.startPrank(admin);
-        payments.setFeePercentage(membershipId, false, percentage);
-        
-        assertEq(payments.getFeePercentage(membershipId, false), percentage);
+        payments.setMembershipFees(membershipId, percentage, percentage);
+
+        (uint256 sellerFee, uint256 buyerFee) = payments.getMembershipFees(membershipId);
+        assertEq(sellerFee, percentage);
+        assertEq(buyerFee, percentage);
         vm.stopPrank();
     }
 
     function testFuzz_SalePrice(uint256 price) public {
         vm.assume(price > 0 && price <= type(uint128).max);
-        
+
         // Setup
         (uint256 wrapperId,) = _setupWrapperForSale();
-        
+
         // Setup approvals
         vm.prank(seller);
         mockToken.approve(address(payments), type(uint256).max);
         vm.prank(treasury);
         fiatToken.approve(address(payments), type(uint256).max);
-        
+
         // List with fuzzed price
         vm.startPrank(operational);
         bytes32 listHash = keccak256(abi.encodePacked("list", block.timestamp, price));
         bytes memory listSig = _signHash(listHash, seller);
-        
+
         SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
         listInputs[0] = SalesBase.ListInputs({
             price: price,
             wrapperId: wrapperId,
             durationId: 0
         });
-        
+
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
-        
-        SalesBase.Sale memory sale = sales.getSale(0);
+
+        ISales.Sale memory sale = sales.getSale(0);
         assertEq(sale.price, price);
         vm.stopPrank();
     }
 
     function testFuzz_BatchOperations(uint8 batchSize) public {
         vm.assume(batchSize > 0 && batchSize <= 50); // Reasonable batch size
-        
+
         vm.startPrank(operational);
-        
+
         // Create batch of users
         address[] memory users = new address[](batchSize);
         for (uint i = 0; i < batchSize; i++) {
             users[i] = makeAddr(string(abi.encodePacked("user", i)));
         }
-        
+
         // Batch whitelist operation
         whitelist.addToWhitelist(users);
-        
+
         // Verify all users are whitelisted
         for (uint i = 0; i < batchSize; i++) {
             assertTrue(whitelist.isWhitelisted(users[i]));
         }
-        
+
         // Batch membership assignment
         memberships.setMemberships(users, 1);
-        
+
         // Verify all users have membership
         for (uint i = 0; i < batchSize; i++) {
             assertEq(memberships.getMembership(users[i]), 1);
         }
-        
+
         vm.stopPrank();
     }
 
@@ -616,46 +640,46 @@ contract CrutradeEcosystemTest is Test {
         vm.assume(day >= 1 && day <= 7);
         vm.assume(hour <= 23);
         vm.assume(minute <= 59);
-        
+
         vm.startPrank(admin);
-        
+
         uint256[] memory scheduleIds = new uint256[](1);
         uint8[] memory daysValue = new uint8[](1);
         uint8[] memory hoursValue = new uint8[](1);
         uint8[] memory minutesValue = new uint8[](1);
-        
+
         scheduleIds[0] = 1;
         daysValue[0] = day;
         hoursValue[0] = hour;
         minutesValue[0] = minute;
-        
+
         sales.setSchedules(scheduleIds, daysValue, hoursValue, minutesValue);
-        
+
         (uint8 storedDay, uint8 storedHour, uint8 storedMinute, bool active) = sales.getSchedule(1);
         assertEq(storedDay, day);
         assertEq(storedHour, hour);
         assertEq(storedMinute, minute);
         assertTrue(active);
-        
+
         vm.stopPrank();
     }
 
     function testFuzz_DurationValues(uint256 durationId, uint256 duration) public {
         vm.assume(durationId > 0 && durationId < 1000);
         vm.assume(duration > 0 && duration <= 365 days);
-        
+
         vm.startPrank(admin);
-        
+
         uint256[] memory durationIds = new uint256[](1);
         uint256[] memory durations = new uint256[](1);
-        
+
         durationIds[0] = durationId;
         durations[0] = duration;
-        
+
         sales.setDurations(durationIds, durations);
-        
+
         assertEq(sales.getDuration(durationId), duration);
-        
+
         vm.stopPrank();
     }
 
@@ -664,25 +688,31 @@ contract CrutradeEcosystemTest is Test {
     function test_CompleteEcosystemFlow() public {
         // 1. Setup all components
         vm.startPrank(operational);
-        
+
         // Whitelist users
         address[] memory users = new address[](2);
         users[0] = seller;
         users[1] = buyer;
         whitelist.addToWhitelist(users);
-        
+
         // Assign different membership tiers
         address[] memory sellerMember = new address[](1);
         sellerMember[0] = seller;
         memberships.setMemberships(sellerMember, 1); // Tier 1
-        
+
         address[] memory buyerMember = new address[](1);
         buyerMember[0] = buyer;
         memberships.setMemberships(buyerMember, 2); // Tier 2
-        
-        // Register brand and import wrapper
+
+        vm.stopPrank();
+
+        // Register brand (requires OWNER role)
+        vm.startPrank(admin);
         uint256 brandId = brands.register(seller);
-        
+        vm.stopPrank();
+
+        // Import wrapper
+        vm.startPrank(operational);
         IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
         wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
@@ -694,17 +724,15 @@ contract CrutradeEcosystemTest is Test {
             active: false
         });
         wrappers.imports(seller, wrapperData);
-        
+
         vm.stopPrank();
-        
+
         // 2. Setup different fee structures
         vm.startPrank(admin);
-        payments.setFeePercentage(1, false, 500); // 5% for tier 1 sending
-        payments.setFeePercentage(1, true, 300);  // 3% for tier 1 receiving
-        payments.setFeePercentage(2, false, 200); // 2% for tier 2 sending
-        payments.setFeePercentage(2, true, 100);  // 1% for tier 2 receiving
+        payments.setMembershipFees(1, 500, 300); // 5% for tier 1 sending, 3% for tier 1 receiving
+        payments.setMembershipFees(2, 200, 100); // 2% for tier 2 sending, 1% for tier 2 receiving
         vm.stopPrank();
-        
+
         // 3. Setup token approvals
         vm.prank(seller);
         mockToken.approve(address(payments), type(uint256).max);
@@ -712,64 +740,70 @@ contract CrutradeEcosystemTest is Test {
         mockToken.approve(address(payments), type(uint256).max);
         vm.prank(treasury);
         fiatToken.approve(address(payments), type(uint256).max);
-        
+
         // 4. List item with premium pricing
         vm.startPrank(operational);
         bytes32 listHash = keccak256(abi.encodePacked("premium_list", block.timestamp));
         bytes memory listSig = _signHash(listHash, seller);
-        
+
         SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
         listInputs[0] = SalesBase.ListInputs({
             price: 5000 * 10**18, // Premium price
-            wrapperId: 0,
+            wrapperId: 1,
             durationId: 0
         });
-        
+
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
-        
+
         // Fast forward to sale start time
-        SalesBase.Sale memory saleInfo = sales.getSale(0);
+        ISales.Sale memory saleInfo = sales.getSale(1);
         if (block.timestamp < saleInfo.start) {
             vm.warp(saleInfo.start + 1);
         }
-        
+
         // 5. Execute purchase and verify complex fee calculations
         bytes32 buyHash = keccak256(abi.encodePacked("premium_buy", block.timestamp));
         bytes memory buySig = _signHash(buyHash, buyer);
-        
+
         uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = 0;
-        
+        saleIds[0] = 1;
+
         // Record balances before
         uint256 buyerBalanceBefore = mockToken.balanceOf(buyer);
         uint256 sellerBalanceBefore = mockToken.balanceOf(seller);
         uint256 feeReceiverBalanceBefore = mockToken.balanceOf(feeReceiver);
-        
+
         sales.buy(buyer, buyHash, buySig, address(mockToken), saleIds);
-        
+
         // 6. Verify complete transaction
-        assertEq(wrappers.ownerOf(0), buyer); // NFT transferred
-        assertFalse(sales.getSale(0).active); // Sale completed
-        
+        assertEq(wrappers.ownerOf(1), buyer); // NFT transferred
+        assertFalse(sales.getSale(1).active); // Sale completed
+
         // Verify fee distribution occurred (con solo treasury fee al 100%)
         assertTrue(mockToken.balanceOf(buyer) < buyerBalanceBefore);
         assertTrue(mockToken.balanceOf(seller) > sellerBalanceBefore);
-        // treasury riceve le fee invece di feeReceiver  
+        // treasury riceve le fee invece di feeReceiver
         assertTrue(mockToken.balanceOf(treasury) > 0 || mockToken.balanceOf(feeReceiver) >= feeReceiverBalanceBefore);
-        
+
         vm.stopPrank();
     }
 
     function test_MultipleCollections() public {
         vm.startPrank(operational);
-        
+
         address[] memory users = new address[](1);
         users[0] = seller;
         whitelist.addToWhitelist(users);
-        
+
+        vm.stopPrank();
+
+        // Register brand (requires OWNER role)
+        vm.startPrank(admin);
         uint256 brandId = brands.register(seller);
-        
+        vm.stopPrank();
+
         // Import wrappers from different collections
+        vm.startPrank(operational);
         IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](3);
         wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
@@ -798,23 +832,23 @@ contract CrutradeEcosystemTest is Test {
             collection: keccak256("COLLECTION_A"),
             active: false
         });
-        
+
         wrappers.imports(seller, wrapperData);
-        
+
         // Verify collections
         assertTrue(wrappers.isValidCollection(keccak256("COLLECTION_A")));
         assertTrue(wrappers.isValidCollection(keccak256("COLLECTION_B")));
         assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 0));
         assertTrue(wrappers.checkCollection(keccak256("COLLECTION_B"), 1));
         assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 2));
-        
+
         // Test collection-based queries
         IWrappers.WrapperData[] memory collectionA = wrappers.getCollectionData(keccak256("COLLECTION_A"));
         assertEq(collectionA.length, 2);
-        
+
         IWrappers.WrapperData[] memory collectionB = wrappers.getCollectionData(keccak256("COLLECTION_B"));
         assertEq(collectionB.length, 1);
-        
+
         vm.stopPrank();
     }
 
@@ -822,7 +856,7 @@ contract CrutradeEcosystemTest is Test {
         // Setup multiple sales from same collection
         (uint256 wrapperId1,) = _setupWrapperForSale();
         _setupAndListItemWithId(wrapperId1);
-        
+
         // Create another wrapper from same collection
         vm.startPrank(operational);
         IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
@@ -837,15 +871,15 @@ contract CrutradeEcosystemTest is Test {
         });
         wrappers.imports(seller, wrapperData);
         vm.stopPrank();
-        
+
         _setupAndListItemWithId(wrapperId1 + 1);
-        
+
         // Query sales by collection
-        SalesBase.Sale[] memory collectionSales = sales.getSalesByCollection(keccak256("TEST_COLLECTION"));
+        ISales.Sale[] memory collectionSales = sales.getSalesByCollection(keccak256("TEST_COLLECTION"));
         assertEq(collectionSales.length, 2);
-        
+
         // Test paginated query
-        (SalesBase.Sale[] memory pagedSales, uint256 total) = sales.getSalesByCollectionPaginated(
+        (ISales.Sale[] memory pagedSales, uint256 total) = sales.getSalesByCollectionPaginated(
             keccak256("TEST_COLLECTION"), 0, 1
         );
         assertEq(pagedSales.length, 1);
@@ -863,10 +897,10 @@ contract CrutradeEcosystemTest is Test {
 
     function test_RevertOnUnauthorizedAccess() public {
         address unauthorized = makeAddr("unauthorized");
-        
+
         address[] memory users = new address[](1);
         users[0] = unauthorized;
-        
+
         vm.startPrank(unauthorized);
         vm.expectRevert();
         whitelist.addToWhitelist(users);
@@ -876,79 +910,83 @@ contract CrutradeEcosystemTest is Test {
     function test_RevertOnInvalidFeePercentage() public {
         vm.startPrank(admin);
         vm.expectRevert();
-        payments.setFeePercentage(1, false, 10001); // > 100%
+        payments.setMembershipFees(1, 9999, 10001); // > 100%
+        // now test the other way around
+        vm.expectRevert();
+        payments.setMembershipFees(1, 10001, 9999); // > 100%
+        // now test the other way around
         vm.stopPrank();
     }
 
     function test_RevertOnInvalidSchedule() public {
         vm.startPrank(admin);
-        
+
         uint256[] memory scheduleIds = new uint256[](1);
         uint8[] memory daysOfWeek = new uint8[](1);
         uint8[] memory hoursValue = new uint8[](1);
         uint8[] memory minutesValue = new uint8[](1);
-        
+
         scheduleIds[0] = 1;
         daysOfWeek[0] = 8; // Invalid day (> 7)
         hoursValue[0] = 10;
         minutesValue[0] = 30;
-        
+
         vm.expectRevert();
         sales.setSchedules(scheduleIds, daysOfWeek, hoursValue, minutesValue);
-        
+
         vm.stopPrank();
     }
 
     function test_RevertOnPurchaseAfterExpiry() public {
         uint256 saleId = _setupAndListItem();
-        
+
         // Fast forward past sale end time
-        SalesBase.Sale memory sale = sales.getSale(saleId);
+        ISales.Sale memory sale = sales.getSale(saleId);
         vm.warp(sale.end + 1);
-        
+
         vm.startPrank(operational);
         bytes32 buyHash = keccak256(abi.encodePacked("buy_expired", block.timestamp));
         bytes memory buySig = _signHash(buyHash, buyer);
-        
+
         uint256[] memory saleIds = new uint256[](1);
         saleIds[0] = saleId;
-        
+
         vm.expectRevert();
         sales.buy(buyer, buyHash, buySig, address(mockToken), saleIds);
-        
+
         vm.stopPrank();
     }
 
     function test_RevertOnWithdrawByNonOwner() public {
         uint256 saleId = _setupAndListItem();
-        
+
         vm.startPrank(operational);
         bytes32 withdrawHash = keccak256(abi.encodePacked("withdraw_unauthorized", block.timestamp));
         bytes memory withdrawSig = _signHash(withdrawHash, buyer); // Wrong signer
-        
+
         uint256[] memory saleIds = new uint256[](1);
         saleIds[0] = saleId;
-        
+
         vm.expectRevert();
         sales.withdraw(buyer, withdrawHash, withdrawSig, address(mockToken), saleIds);
-        
+
         vm.stopPrank();
     }
 
     function test_RevertOnRenewActiveSale() public {
         uint256 saleId = _setupAndListItem();
-        
+
         // Try to renew active sale (should only work on expired sales)
         vm.startPrank(operational);
         bytes32 renewHash = keccak256(abi.encodePacked("renew_active", block.timestamp));
         bytes memory renewSig = _signHash(renewHash, seller);
-        
+
         uint256[] memory saleIds = new uint256[](1);
         saleIds[0] = saleId;
-        
+
         vm.expectRevert();
         sales.renew(seller, renewHash, renewSig, address(mockToken), saleIds);
-        
+
         vm.stopPrank();
     }
 
@@ -956,38 +994,38 @@ contract CrutradeEcosystemTest is Test {
 
     function test_EmptyBatchOperations() public {
         vm.startPrank(operational);
-        
+
         address[] memory emptyUsers = new address[](0);
-        
+
         // La whitelist può accettare array vuoti, proviamo con membership che dovrebbe fallire
         // Nel codice MembershipsBase.sol, _setMemberships controlla length == 0
         vm.expectRevert();
         memberships.setMemberships(emptyUsers, 1);
-        
+
         vm.stopPrank();
     }
 
     function test_DuplicateFeeAddition() public {
         vm.startPrank(admin);
-        
+
         // Prima rimuovo la fee TREASURY esistente per fare spazio
         payments.removeFee(TREASURY);
-        
+
         // Aggiungo una fee custom
         payments.addFee("TEST_FEE", 5000, feeReceiver); // 50%
-        
+
         // Provo ad aggiungere la stessa fee (dovrebbe fallire)
         vm.expectRevert();
         payments.addFee("TEST_FEE", 2000, feeReceiver); // Duplicate name
-        
+
         vm.stopPrank();
     }
 
     function test_SoulboundBrandTransfer() public {
-        vm.startPrank(operational);
+        vm.startPrank(admin); // Use admin for brand registration
         uint256 brandId = brands.register(seller);
         vm.stopPrank();
-        
+
         // Should not be able to transfer soulbound brand
         vm.startPrank(seller);
         vm.expectRevert();
@@ -997,35 +1035,39 @@ contract CrutradeEcosystemTest is Test {
 
     function test_ZeroPriceListing() public {
         (uint256 wrapperId,) = _setupWrapperForSale();
-        
+
         vm.startPrank(operational);
         bytes32 listHash = keccak256(abi.encodePacked("zero_price", block.timestamp));
         bytes memory listSig = _signHash(listHash, seller);
-        
+
         SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
         listInputs[0] = SalesBase.ListInputs({
             price: 0, // Zero price
             wrapperId: wrapperId,
             durationId: 0
         });
-        
+
         vm.expectRevert();
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
-        
+
         vm.stopPrank();
     }
 
     // === UTILITY FUNCTIONS ===
 
     function _setupWrapperForSale() internal returns (uint256 wrapperId, uint256 brandId) {
-        vm.startPrank(operational);
-        
+        vm.startPrank(admin);
+
         address[] memory users = new address[](1);
         users[0] = seller;
         whitelist.addToWhitelist(users);
-        
+
         brandId = brands.register(seller);
-        
+
+        vm.stopPrank();
+
+        // Import wrapper (requires OPERATIONAL role)
+        vm.startPrank(operational);
         IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
         wrapperData[0] = IWrappers.WrapperData({
             uri: "https://example.com/metadata/1",
@@ -1036,10 +1078,10 @@ contract CrutradeEcosystemTest is Test {
             collection: keccak256("TEST_COLLECTION"),
             active: false
         });
-        
+
         wrappers.imports(seller, wrapperData);
-        wrapperId = 0; // First wrapper has ID 0
-        
+        wrapperId = 1; // First wrapper has ID 1
+
         vm.stopPrank();
     }
 
@@ -1054,29 +1096,29 @@ contract CrutradeEcosystemTest is Test {
         mockToken.approve(address(payments), type(uint256).max);
         vm.prank(treasury);
         fiatToken.approve(address(payments), type(uint256).max);
-        
+
         // List item
         vm.startPrank(operational);
         bytes32 listHash = keccak256(abi.encodePacked("list", block.timestamp, wrapperId));
         bytes memory listSig = _signHash(listHash, seller);
-        
+
         SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
         listInputs[0] = SalesBase.ListInputs({
             price: 1000 * 10**18,
             wrapperId: wrapperId,
             durationId: 0
         });
-        
+
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
-        
+
         vm.stopPrank();
-        
+
         return 0; // Return 0 for first sale (sequential IDs)
     }
 
-    function _signHash(bytes32 hash, address signer) internal view returns (bytes memory) {
+    function _signHash(bytes32 hash, address signer) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            _getPrivateKey(signer), 
+            _getPrivateKey(signer),
             keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash))
         );
         return abi.encodePacked(r, s, v);
@@ -1091,5 +1133,11 @@ contract CrutradeEcosystemTest is Test {
         if (account == vm.addr(FEE_RECEIVER_KEY)) return FEE_RECEIVER_KEY;
         return 0x999; // fallback
     }
-    */
+
+    function _toAddressArray(address addr) internal pure returns (address[] memory) {
+        address[] memory array = new address[](1);
+        array[0] = addr;
+        return array;
+    }
+
 }

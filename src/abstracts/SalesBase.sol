@@ -75,7 +75,7 @@ abstract contract SalesBase is
     mapping(uint256 => uint256) internal _durations;
 
     /// @dev Maps sale IDs to their sale data
-    mapping(uint256 => Sale) internal _salesById;
+    mapping(uint256 => ISales.Sale) internal _salesById;
 
     /// @dev Maps collections to their sale IDs
     mapping(bytes32 => EnumerableSet.UintSet) internal _saleIdsByCollection;
@@ -102,8 +102,8 @@ abstract contract SalesBase is
     event List(
         address wallet,
         uint256[] salesIds,
-        Date[] dates,
-        ServiceFee[] serviceFees,
+        ISales.Date[] dates,
+        IPayments.ServiceFee[] serviceFees,
         ListOutputs[] outputs
     );
 
@@ -113,7 +113,7 @@ abstract contract SalesBase is
      * @param salesIds IDs of the purchased sales
      * @param fees Transaction fees for each sale
      */
-    event Buy(address wallet, uint256[] salesIds, TransactionFees[] fees);
+    event Buy(address wallet, uint256[] salesIds, IPayments.TransactionFees[] fees);
 
     /**
      * @notice Emitted when sales are renewed
@@ -125,8 +125,8 @@ abstract contract SalesBase is
     event Renew(
         address wallet,
         uint256[] salesIds,
-        Date[] dates,
-        ServiceFee[] serviceFees
+        ISales.Date[] dates,
+        IPayments.ServiceFee[] serviceFees
     );
 
     /**
@@ -138,7 +138,7 @@ abstract contract SalesBase is
     event Withdraw(
         address wallet,
         uint256[] salesIds,
-        ServiceFee[] serviceFees
+        IPayments.ServiceFee[] serviceFees
     );
 
     /**
@@ -290,8 +290,8 @@ abstract contract SalesBase is
      * @param saleId The ID of the sale
      * @return Sale The sale data
      */
-    function _getSale(uint256 saleId) internal view returns (Sale memory) {
-        Sale memory sale = _salesById[saleId];
+    function _getSale(uint256 saleId) internal view returns (ISales.Sale memory) {
+        ISales.Sale memory sale = _salesById[saleId];
         if (sale.seller == address(0)) revert SaleNotFound(saleId);
         return sale;
     }
@@ -304,11 +304,11 @@ abstract contract SalesBase is
     function _getSalesByCollection(bytes32 collection)
         internal
         view
-        returns (Sale[] memory)
+        returns (ISales.Sale[] memory)
     {
         uint256[] memory saleIds = _saleIdsByCollection[collection].values();
         uint256 length = saleIds.length;
-        Sale[] memory sales = new Sale[](length);
+        ISales.Sale[] memory sales = new ISales.Sale[](length);
 
         for (uint256 i = 0; i < length; i++) {
             sales[i] = _salesById[saleIds[i]];
@@ -329,16 +329,16 @@ abstract contract SalesBase is
         bytes32 collection,
         uint256 offset,
         uint256 limit
-    ) internal view returns (Sale[] memory sales, uint256 total) {
+    ) internal view returns (ISales.Sale[] memory sales, uint256 total) {
         uint256[] memory saleIds = _saleIdsByCollection[collection].values();
         total = saleIds.length;
 
         if (offset >= total || limit == 0) {
-            return (new Sale[](0), total);
+            return (new ISales.Sale[](0), total);
         }
 
         uint256 size = (offset + limit > total) ? (total - offset) : limit;
-        sales = new Sale[](size);
+        sales = new ISales.Sale[](size);
 
         for (uint256 i = 0; i < size; i++) {
             sales[i] = _salesById[saleIds[offset + i]];
@@ -403,8 +403,8 @@ abstract contract SalesBase is
         internal
         returns (
             uint256,
-            Date memory,
-            ServiceFee memory,
+            ISales.Date memory,
+            IPayments.ServiceFee memory,
             ListOutputs memory
         )
     {
@@ -432,7 +432,7 @@ abstract contract SalesBase is
         uint256 end = start + _durations[input.durationId];
 
         // Create sale - follow checks-effects-interactions pattern
-        Sale memory sale = Sale({
+        ISales.Sale memory sale = ISales.Sale({
             wrapperId: wrapperId,
             price: input.price,
             seller: seller,
@@ -447,7 +447,7 @@ abstract contract SalesBase is
         _saleIdsBySeller[seller].add(saleId);
 
         // Calculate service fees
-        ServiceFee memory serviceFee = IPayments(paymentsAddr).splitServiceFee(
+        IPayments.ServiceFee memory serviceFee = IPayments(paymentsAddr).splitServiceFee(
             LIST,
             seller,
             erc20
@@ -464,7 +464,7 @@ abstract contract SalesBase is
         });
 
         // Prepare date
-        Date memory date = Date({expireListDate: end, expireUpcomeDate: start});
+        ISales.Date memory date = ISales.Date({expireListDate: end, expireUpcomeDate: start});
 
         return (saleId, date, serviceFee, output);
     }
@@ -480,9 +480,9 @@ abstract contract SalesBase is
         address buyer,
         address erc20,
         uint256 saleId
-    ) internal returns (TransactionFees memory fees) {
+    ) internal returns (IPayments.TransactionFees memory fees) {
         IWrappers wrappers = IWrappers(roles.getRoleAddress(WRAPPERS));
-        Sale storage sale = _salesById[saleId];
+        ISales.Sale storage sale = _salesById[saleId];
 
         // Validate
         if (sale.seller == address(0)) revert SaleNotFound(saleId);
@@ -511,7 +511,7 @@ abstract contract SalesBase is
 
         // Then calculate and process transaction fees
         IPayments payments = IPayments(roles.getRoleAddress(PAYMENTS));
-        ServiceFee memory serviceFee = payments.splitServiceFee(
+        IPayments.ServiceFee memory serviceFee = payments.splitServiceFee(
             BUY,
             buyer,
             erc20
@@ -536,9 +536,9 @@ abstract contract SalesBase is
         address seller,
         address erc20,
         uint256 saleId
-    ) internal returns (ServiceFee memory fee) {
+    ) internal returns (IPayments.ServiceFee memory fee) {
         IWrappers wrappers = IWrappers(roles.getRoleAddress(WRAPPERS));
-        Sale storage sale = _salesById[saleId];
+        ISales.Sale storage sale = _salesById[saleId];
 
         // Validate
         if (sale.seller == address(0)) revert SaleNotFound(saleId);
@@ -583,8 +583,8 @@ abstract contract SalesBase is
         address erc20,
         uint256 saleId,
         uint256 nextScheduleTime
-    ) internal returns (Date memory date, ServiceFee memory fee) {
-        Sale storage sale = _salesById[saleId];
+    ) internal returns (ISales.Date memory date, IPayments.ServiceFee memory fee) {
+        ISales.Sale storage sale = _salesById[saleId];
 
         // Validate
         if (sale.seller == address(0)) revert SaleNotFound(saleId);
@@ -611,7 +611,7 @@ abstract contract SalesBase is
         sale.end = end;
 
         // Prepare date
-        date = Date({expireListDate: end, expireUpcomeDate: start});
+        date = ISales.Date({expireListDate: end, expireUpcomeDate: start});
 
         return (date, fee);
     }

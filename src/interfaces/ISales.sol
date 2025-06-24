@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
+
+/**
+ * @title ISales
+ * @notice Interface for sales operations in the Crutrade ecosystem
+ * @dev Defines structures and methods for interacting with the Sales contract
+ * @author Crutrade Team
+ */
+interface ISales {
     /* TYPES */
-    
+
     /**
      * @dev Date struct definition for sales
      * @param expireListDate Expiration date for listing
@@ -26,20 +34,12 @@ pragma solidity 0.8.30;
         uint256 start;
         uint256 price;
         uint256 wrapperId;
-        address seller;        
+        address seller;
         bool active;
     }
-/**
- * @title ISales
- * @notice Interface for sales operations in the Crutrade ecosystem
- * @dev Defines structures and methods for interacting with the Sales contract
- * @author Crutrade Team
- */
-interface ISales {
-
 
     /* FUNCTIONS */
-    
+
     /**
      * @notice Retrieves a specific sale
      * @param saleId Sale identifier

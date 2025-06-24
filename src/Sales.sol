@@ -84,7 +84,7 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
      * @param minuteValues Array of minutes (0-59)
      */
     function setSchedules(
-        uint8[] calldata scheduleIds,
+        uint256[] calldata scheduleIds,
         uint8[] calldata daysOfWeek,
         uint8[] calldata hourValues,
         uint8[] calldata minuteValues
@@ -178,9 +178,9 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
         uint256 length = saleInputs.length;
         if (length == 0) revert InvalidSaleOperation("Empty input array");
 
-        Date[] memory dates = new Date[](length);
+        ISales.Date[] memory dates = new ISales.Date[](length);
         uint256[] memory salesIds = new uint256[](length);
-        ServiceFee[] memory fees = new ServiceFee[](length);
+        IPayments.ServiceFee[] memory fees = new IPayments.ServiceFee[](length);
         ListOutputs[] memory outputs = new ListOutputs[](length);
 
         // Get the next scheduled activation time
@@ -231,7 +231,7 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     {
         uint256 length = salesIds.length;
         if (length == 0) revert InvalidSaleOperation("Empty input array");
-        TransactionFees[] memory fees = new TransactionFees[](length);
+        IPayments.TransactionFees[] memory fees = new IPayments.TransactionFees[](length);
 
         unchecked {
             for (uint256 i; i < length; i++) {
@@ -267,7 +267,7 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
         uint256 length = salesIds.length;
         if (length == 0) revert InvalidSaleOperation("Empty input array");
 
-        ServiceFee[] memory fees = new ServiceFee[](length);
+        IPayments.ServiceFee[] memory fees = new IPayments.ServiceFee[](length);
 
         unchecked {
             for (uint256 i; i < length; i++) {
@@ -303,8 +303,8 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
         uint256 length = salesIds.length;
         if (length == 0) revert InvalidSaleOperation("Empty input array");
 
-        Date[] memory dates = new Date[](length);
-        ServiceFee[] memory fees = new ServiceFee[](length);
+        ISales.Date[] memory dates = new ISales.Date[](length);
+        IPayments.ServiceFee[] memory fees = new IPayments.ServiceFee[](length);
 
         // Get the next scheduled activation time
         uint256 nextScheduleTime = getNextScheduleTime();
@@ -330,7 +330,7 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
      * @param saleId The ID of the sale
      * @return Sale The sale data
      */
-    function getSale(uint256 saleId) external view returns (Sale memory) {
+    function getSale(uint256 saleId) external view returns (ISales.Sale memory) {
         return _getSale(saleId);
     }
 
@@ -342,7 +342,7 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     function getSalesByCollection(bytes32 collection)
         external
         view
-        returns (Sale[] memory)
+        returns (ISales.Sale[] memory)
     {
         return _getSalesByCollection(collection);
     }
@@ -359,7 +359,7 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
         bytes32 collection,
         uint256 offset,
         uint256 limit
-    ) external view returns (Sale[] memory sales, uint256 total) {
+    ) external view returns (ISales.Sale[] memory sales, uint256 total) {
         return _getSalesByCollectionPaginated(collection, offset, limit);
     }
 
