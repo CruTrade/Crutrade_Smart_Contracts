@@ -15,6 +15,7 @@ import "../src/Brands.sol";
 
 // Import base contracts for structs
 import "../src/abstracts/SalesBase.sol";
+import "../src/abstracts/ModifiersBase.sol";
 
 // Import interfaces
 import "../src/interfaces/IWrappers.sol";
@@ -31,6 +32,34 @@ contract MockERC20 is ERC20 {
 
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
+    }
+}
+
+// Malicious contract for testing the vulnerability
+contract MaliciousContract {
+    // This contract has no delegate rights and should be blocked
+    function attack() external pure returns (string memory) {
+        return "I am a malicious contract";
+    }
+}
+
+// Simple test contract to isolate the onlyDelegatedRole modifier
+contract TestModifierContract is ModifiersBase {
+    bool public wasCalled = false;
+
+    function initialize(address _roles) external initializer {
+        __ModifiersBase_init(_roles);
+    }
+
+    function functionOnlyDelegatedRole() external onlyDelegatedRole {
+        wasCalled = true;
+    }
+}
+
+// Separate caller contract for testing
+contract TestCallerContract {
+    function callTestFunction(TestModifierContract target) external {
+        target.functionOnlyDelegatedRole();
     }
 }
 
@@ -1051,6 +1080,117 @@ contract CrutradeEcosystemTest is Test {
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
 
         vm.stopPrank();
+    }
+
+    // === SECURITY VULNERABILITY TESTS ===
+
+    /**
+     * @notice Test that definitively proves the onlyDelegatedRole vulnerability
+     * @dev Uses a simple contract with only the modifier to isolate the issue
+     */
+    function test_OnlyDelegatedRoleVulnerabilityIsolated() public {
+        // Deploy the test contract
+        TestModifierContract testContract = new TestModifierContract();
+        testContract.initialize(address(roles));
+
+        // Create a malicious EOA
+        address maliciousEOA = vm.addr(0x999);
+
+        console.log("Testing isolated onlyDelegatedRole modifier...");
+        console.log("Malicious EOA:", maliciousEOA);
+        console.log("Malicious EOA has delegate role:", roles.hasDelegateRole(maliciousEOA));
+
+        // Try to call the function with only the onlyDelegatedRole modifier
+        vm.startPrank(maliciousEOA);
+
+        try testContract.functionOnlyDelegatedRole() {
+            // If we reach here, the vulnerability is confirmed
+            console.log("VULNERABILITY CONFIRMED: EOA was able to call function with onlyDelegatedRole modifier");
+            assertTrue(testContract.wasCalled(), "Function should have been called");
+            assertTrue(false, "VULNERABILITY: EOA bypassed onlyDelegatedRole modifier");
+        } catch Error(string memory reason) {
+            console.log("Function reverted with reason:", reason);
+        } catch {
+            console.log("Function reverted with low-level error");
+        }
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test to verify that legitimate contracts with delegate rights can still call the function
+     * @dev This test confirms the fix doesn't break legitimate functionality
+     */
+    function test_OnlyDelegatedRoleAllowsLegitimateContracts() public {
+        // Deploy the test contract
+        TestModifierContract testContract = new TestModifierContract();
+        testContract.initialize(address(roles));
+
+        // Deploy the caller contract
+        TestCallerContract callerContract = new TestCallerContract();
+
+        // Grant delegate role to the caller contract
+        vm.startPrank(admin);
+        roles.grantDelegateRole(address(callerContract));
+        vm.stopPrank();
+
+        console.log("Testing legitimate contract with delegate rights...");
+        console.log("Caller contract address:", address(callerContract));
+        console.log("Caller contract has delegate role:", roles.hasDelegateRole(address(callerContract)));
+        console.log("Caller contract code length:", address(callerContract).code.length);
+
+        // Try to call the function from the legitimate caller contract
+        vm.startPrank(address(callerContract));
+
+        try callerContract.callTestFunction(testContract) {
+            console.log("SUCCESS: Legitimate contract was able to call function");
+            assertTrue(testContract.wasCalled(), "Function should have been called");
+        } catch Error(string memory reason) {
+            console.log("Function reverted with reason:", reason);
+            assertTrue(false, "Legitimate contract should be able to call function");
+        } catch {
+            console.log("Function reverted with low-level error");
+            assertTrue(false, "Legitimate contract should be able to call function");
+        }
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test to verify that contracts without delegate rights are properly blocked
+     * @dev This test confirms that unauthorized contracts cannot call the function
+     */
+    function test_OnlyDelegatedRoleBlocksUnauthorizedContracts() public {
+        // Deploy the test contract
+        TestModifierContract testContract = new TestModifierContract();
+        testContract.initialize(address(roles));
+
+        // Deploy the caller contract (without granting delegate role)
+        TestCallerContract callerContract = new TestCallerContract();
+
+        console.log("Testing unauthorized contract without delegate rights...");
+        console.log("Caller contract address:", address(callerContract));
+        console.log("Caller contract has delegate role:", roles.hasDelegateRole(address(callerContract)));
+        console.log("Caller contract code length:", address(callerContract).code.length);
+
+        // Try to call the function from the unauthorized caller contract
+        vm.startPrank(address(callerContract));
+
+        try callerContract.callTestFunction(testContract) {
+            console.log("VULNERABILITY: Unauthorized contract was able to call function");
+            assertTrue(false, "Unauthorized contract should not be able to call function");
+        } catch Error(string memory reason) {
+            console.log("Function reverted with reason:", reason);
+            // This is expected - the contract should be blocked
+        } catch {
+            console.log("Function reverted with low-level error");
+            // This is also expected - the contract should be blocked
+        }
+
+        vm.stopPrank();
+
+        // Verify the function was not called
+        assertFalse(testContract.wasCalled(), "Function should not have been called");
     }
 
     // === UTILITY FUNCTIONS ===
