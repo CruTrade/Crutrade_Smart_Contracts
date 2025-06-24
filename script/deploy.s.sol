@@ -11,6 +11,7 @@ import '../src/Whitelist.sol';
 import '../src/Payments.sol';
 import '../src/Sales.sol';
 import '../src/Memberships.sol';
+import '../src/mock/MockUSDC.sol';
 
 import '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 
@@ -22,16 +23,41 @@ import '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
  */
 contract CrutradeDeploy is Script {
   /* CONSTANTS */
-  
+
   /// @notice Default admin address (multisig)
   address private constant DEFAULT_ADMIN = 0xd6ef21b20D3Bb4012808695c96A60f6032e14FB6;
-  
+
   /// @notice Operational addresses
   address private constant OPERATIONAL_1 = 0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC;
   address private constant OPERATIONAL_2 = 0xe812BeeF1F7A62ed142835Ec2622B71AeA858085;
 
+  address private constant ANVIL_ADDRESS_1 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+  address private constant ANVIL_ADDRESS_2 = 0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC;
+  address private constant ANVIL_ADDRESS_3 = 0xe812BeeF1F7A62ed142835Ec2622B71AeA858085;
+
+  uint256 private constant ANVIL_ADDRESS_1_PRIVATE_KEY =
+    0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+  uint256 private constant ANVIL_ADDRESS_2_PRIVATE_KEY =
+    0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+  uint256 private constant ANVIL_ADDRESS_3_PRIVATE_KEY =
+    0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a;
+
+  /* STATE VARIABLES */
+
+  /// @notice Owner address for the current deployment
+  address private owner;
+
+  /// @notice Operational address 1
+  address private operational1;
+
+  /// @notice Operational address 2
+  address private operational2;
+
+  /// @notice USDC token address for the current deployment
+  address private usdcAddress;
+
   /* CONTRACT INSTANCES */
-  
+
   // Implementation contracts
   Roles rolesImpl;
   Brands brandsImpl;
@@ -57,25 +83,86 @@ contract CrutradeDeploy is Script {
    * @dev Executes the complete deployment sequence
    */
   function run() external {
-    uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
+    string memory network = vm.envOr("NETWORK", string("local"));
+    if (keccak256(bytes(network)) == keccak256(bytes("mainnet"))) {
+      runMainnet();
+    } else if (keccak256(bytes(network)) == keccak256(bytes("fuji"))) {
+      runTestnet();
+    } else {
+      runLocal();
+    }
+  }
+
+  function runLocal() public {
+    owner = ANVIL_ADDRESS_1;
+    operational1 = ANVIL_ADDRESS_2;
+    operational2 = ANVIL_ADDRESS_3;
+
+    // Deploy mock USDC
+    vm.startBroadcast(ANVIL_ADDRESS_1_PRIVATE_KEY);
+    MockUSDC mockUSDC = new MockUSDC();
+    usdcAddress = address(mockUSDC);
+    vm.stopBroadcast();
+
+    console.log("Deployed MockUSDC at:", usdcAddress);
+
+    _deployAll(ANVIL_ADDRESS_1_PRIVATE_KEY, "local");
+  }
+
+  function runTestnet() public {
+    owner = vm.envAddress("OWNER");
+    operational1 = vm.envAddress("OPERATIONAL_1");
+    operational2 = vm.envAddress("OPERATIONAL_2");
+    usdcAddress = 0x5425890298aed601595a70AB815c96711a31Bc65; // Fuji USDC
+
+    uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+    _deployAll(deployerPrivateKey, "fuji");
+  }
+
+  function runMainnet() public {
+    owner = vm.envAddress("OWNER");
+    operational1 = vm.envAddress("OPERATIONAL_1");
+    operational2 = vm.envAddress("OPERATIONAL_2");
+    usdcAddress = 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E; // Mainnet USDC
+
+    uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+    _deployAll(deployerPrivateKey, "mainnet");
+  }
+
+  function _deployAll(uint256 deployerPrivateKey, string memory network) internal {
     vm.startBroadcast(deployerPrivateKey);
 
     console.log('Deploying CruTrade ecosystem...');
 
     // Step 1: Deploy all implementation contracts
     _deployImplementations();
-    
+
     // Step 2: Deploy all other contracts first (brands includes first brand registration)
     _deployOtherContracts();
-    
+
     // Step 3: Deploy Roles last with everything configured
     _deployRolesWithFullSetup();
-    
+
     // Step 4: Save deployment information
-    _saveDeployment();
+    // _saveDeployment(); // Commented out - using Foundry's broadcast instead
 
     console.log('Deploy complete - ecosystem ready!');
     vm.stopBroadcast();
+
+    // Print summary
+    console.log("Deployment complete for", network);
+    console.log("Owner:", owner);
+    console.log("Operational1:", operational1);
+    console.log("Operational2:", operational2);
+    console.log("USDC:", usdcAddress);
+    console.log('All contract addresses:');
+    console.log('   - Roles:', address(rolesProxy));
+    console.log('   - Brands:', address(brandsProxy));
+    console.log('   - Wrappers:', address(wrappersProxy));
+    console.log('   - Whitelist:', address(whitelistProxy));
+    console.log('   - Payments:', address(paymentsProxy));
+    console.log('   - Sales:', address(salesProxy));
+    console.log('   - Memberships:', address(membershipsProxy));
   }
 
   /* DEPLOYMENT STEPS */
@@ -134,7 +221,7 @@ contract CrutradeDeploy is Script {
       address(membershipsImpl),
       abi.encodeCall(membershipsImpl.initialize, (dummyRoles))
     );
-    
+
     console.log('All other contracts deployed (first brand registered)');
   }
 
@@ -144,10 +231,10 @@ contract CrutradeDeploy is Script {
    */
   function _deployRolesWithFullSetup() private {
     // Determine USDT address based on chain
-    address usdtAddress = block.chainid == 43113 
+    address usdtAddress = block.chainid == 43113
       ? 0xd495C61A12f0E67E0F293E9DAC4772Acb457d287  // Fuji testnet
       : 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E; // Avalanche mainnet
-    
+
     // Prepare operational addresses array
     address[] memory operationalAddresses = new address[](2);
     operationalAddresses[0] = OPERATIONAL_1;
@@ -209,11 +296,13 @@ contract CrutradeDeploy is Script {
   /**
    * @notice Saves deployment information to JSON files
    * @dev Creates both latest.json and timestamped deployment files
+   * COMMENTED OUT - Using Foundry's broadcast functionality instead
    */
+  /*
   function _saveDeployment() private {
     // Determine network folder
-    string memory network = vm.envOr('NODE_ENV', string('dev'));
-    string memory folder = keccak256(bytes(network)) == keccak256(bytes('dev')) ? 'testnet' : 'mainnet';
+    string memory nodeEnv = vm.envOr('NODE_ENV', string('dev'));
+    string memory folder = keccak256(abi.encodePacked(nodeEnv)) == keccak256(abi.encodePacked('dev')) ? 'testnet' : 'mainnet';
     string memory dirPath = string.concat('./deployments/', folder);
 
     // Create deployment directory
@@ -227,7 +316,7 @@ contract CrutradeDeploy is Script {
     string memory json = '{}';
     json = vm.serializeUint('deployment', 'chainId', block.chainid);
     json = vm.serializeUint('deployment', 'timestamp', block.timestamp);
-    
+
     // Proxy contract addresses
     json = vm.serializeAddress('deployment', 'roles', address(rolesProxy));
     json = vm.serializeAddress('deployment', 'brands', address(brandsProxy));
@@ -236,7 +325,7 @@ contract CrutradeDeploy is Script {
     json = vm.serializeAddress('deployment', 'payments', address(paymentsProxy));
     json = vm.serializeAddress('deployment', 'sales', address(salesProxy));
     json = vm.serializeAddress('deployment', 'memberships', address(membershipsProxy));
-    
+
     // Configuration metadata
     json = vm.serializeAddress('deployment', 'defaultAdmin', DEFAULT_ADMIN);
     json = vm.serializeBool('deployment', 'fullyConfigured', true);
@@ -248,4 +337,5 @@ contract CrutradeDeploy is Script {
 
     console.log('Deployment information saved to:', folder);
   }
+  */
 }
