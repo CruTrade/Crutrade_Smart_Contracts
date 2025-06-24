@@ -97,3 +97,6 @@ deployments/**/run-*.json
 forge-cache/
 foundry-cache/
 deployments/
+
+# Soldeer
+/dependencies
