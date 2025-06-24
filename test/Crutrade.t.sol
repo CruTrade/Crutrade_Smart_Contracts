@@ -343,7 +343,7 @@ contract CrutradeEcosystemTest is Test {
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
 
         // Verify listing
-        ISales.Sale memory sale = sales.getSale(0);
+        ISales.Sale memory sale = sales.getSale(1);
         assertEq(sale.price, 1000 * 10**18);
         assertEq(sale.seller, seller);
         assertEq(sale.wrapperId, wrapperId);
@@ -601,7 +601,7 @@ contract CrutradeEcosystemTest is Test {
 
         sales.list(seller, listHash, listSig, address(mockToken), listInputs);
 
-        ISales.Sale memory sale = sales.getSale(0);
+        ISales.Sale memory sale = sales.getSale(1);
         assertEq(sale.price, price);
         vm.stopPrank();
     }
@@ -838,9 +838,9 @@ contract CrutradeEcosystemTest is Test {
         // Verify collections
         assertTrue(wrappers.isValidCollection(keccak256("COLLECTION_A")));
         assertTrue(wrappers.isValidCollection(keccak256("COLLECTION_B")));
-        assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 0));
-        assertTrue(wrappers.checkCollection(keccak256("COLLECTION_B"), 1));
-        assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 2));
+        assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 1));
+        assertTrue(wrappers.checkCollection(keccak256("COLLECTION_B"), 2));
+        assertTrue(wrappers.checkCollection(keccak256("COLLECTION_A"), 3));
 
         // Test collection-based queries
         IWrappers.WrapperData[] memory collectionA = wrappers.getCollectionData(keccak256("COLLECTION_A"));
@@ -872,7 +872,7 @@ contract CrutradeEcosystemTest is Test {
         wrappers.imports(seller, wrapperData);
         vm.stopPrank();
 
-        _setupAndListItemWithId(wrapperId1 + 1);
+        _setupAndListItemWithId(2); // Use wrapper ID 2 for the second wrapper
 
         // Query sales by collection
         ISales.Sale[] memory collectionSales = sales.getSalesByCollection(keccak256("TEST_COLLECTION"));
@@ -1113,7 +1113,7 @@ contract CrutradeEcosystemTest is Test {
 
         vm.stopPrank();
 
-        return 0; // Return 0 for first sale (sequential IDs)
+        return 1; // Return 1 for first sale (sequential IDs start from 1)
     }
 
     function _signHash(bytes32 hash, address signer) internal pure returns (bytes memory) {
