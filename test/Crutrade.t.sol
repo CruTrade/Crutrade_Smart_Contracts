@@ -76,7 +76,7 @@ contract CrutradeEcosystemTest is Test {
     MockERC20 public mockToken;
     MockERC20 public fiatToken;
 
-    // Test addresses - usando vm.addr() per avere corrispondenza con private keys
+    // Test addresses - using vm.addr() to have correspondence with private keys
     uint256 constant ADMIN_KEY = 0x1;
     uint256 constant OPERATIONAL_KEY = 0x2;
     uint256 constant SELLER_KEY = 0x3;
@@ -198,8 +198,8 @@ contract CrutradeEcosystemTest is Test {
         roles.grantDelegateRole(address(sales));
         roles.grantDelegateRole(address(wrappers));
 
-        // La fee TREASURY è già al 100% nell'initialize, non aggiungo altre fee per ora
-        // per evitare di superare il limite
+        // The TREASURY fee is already at 100% in initialize, I don't add other fees for now
+        // to avoid exceeding the limit
 
         // Setup service fees for operations
         payments.setServiceFee(LIST, 10 * 10**18);
@@ -386,7 +386,7 @@ contract CrutradeEcosystemTest is Test {
         // Setup and list item
         uint256 saleId = _setupAndListItem();
 
-        // Assicurati che buyer sia whitelisted
+        // Make sure buyer is whitelisted
         vm.startPrank(operational);
         address[] memory buyerArray = new address[](1);
         buyerArray[0] = buyer;
@@ -423,10 +423,10 @@ contract CrutradeEcosystemTest is Test {
         assertFalse(soldSale.active); // Sale should be inactive
         assertEq(wrappers.ownerOf(soldSale.wrapperId), buyer); // NFT transferred to buyer
 
-        // Verify fee distribution occurred (con solo treasury fee al 100%)
+        // Verify fee distribution occurred (with only treasury fee at 100%)
         assertTrue(mockToken.balanceOf(buyer) < buyerBalanceBefore);
         assertTrue(mockToken.balanceOf(seller) > sellerBalanceBefore);
-        // treasury riceve le fee invece di feeReceiver
+        // treasury receives the fees instead of feeReceiver
         assertTrue(mockToken.balanceOf(treasury) > 0 || mockToken.balanceOf(feeReceiver) >= feeReceiverBalanceBefore);
 
         vm.stopPrank();
@@ -808,10 +808,10 @@ contract CrutradeEcosystemTest is Test {
         assertEq(wrappers.ownerOf(1), buyer); // NFT transferred
         assertFalse(sales.getSale(1).active); // Sale completed
 
-        // Verify fee distribution occurred (con solo treasury fee al 100%)
+        // Verify fee distribution occurred (with only treasury fee at 100%)
         assertTrue(mockToken.balanceOf(buyer) < buyerBalanceBefore);
         assertTrue(mockToken.balanceOf(seller) > sellerBalanceBefore);
-        // treasury riceve le fee invece di feeReceiver
+        // treasury receives the fees instead of feeReceiver
         assertTrue(mockToken.balanceOf(treasury) > 0 || mockToken.balanceOf(feeReceiver) >= feeReceiverBalanceBefore);
 
         vm.stopPrank();
@@ -1026,8 +1026,8 @@ contract CrutradeEcosystemTest is Test {
 
         address[] memory emptyUsers = new address[](0);
 
-        // La whitelist può accettare array vuoti, proviamo con membership che dovrebbe fallire
-        // Nel codice MembershipsBase.sol, _setMemberships controlla length == 0
+        // The whitelist can accept empty arrays, let's try with membership which should fail
+        // In the MembershipsBase.sol code, _setMemberships checks length == 0
         vm.expectRevert();
         memberships.setMemberships(emptyUsers, 1);
 
@@ -1037,13 +1037,13 @@ contract CrutradeEcosystemTest is Test {
     function test_DuplicateFeeAddition() public {
         vm.startPrank(admin);
 
-        // Prima rimuovo la fee TREASURY esistente per fare spazio
+        // First I remove the existing TREASURY fee to make space
         payments.removeFee(TREASURY);
 
-        // Aggiungo una fee custom
+        // I add a custom fee
         payments.addFee("TEST_FEE", 5000, feeReceiver); // 50%
 
-        // Provo ad aggiungere la stessa fee (dovrebbe fallire)
+        // I try to add the same fee (should fail)
         vm.expectRevert();
         payments.addFee("TEST_FEE", 2000, feeReceiver); // Duplicate name
 
