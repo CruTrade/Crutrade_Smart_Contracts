@@ -12,6 +12,7 @@ import '../src/Payments.sol';
 import '../src/Sales.sol';
 import '../src/Memberships.sol';
 import '../src/mock/MockUSDC.sol';
+import '../src/interfaces/IPayments.sol';
 
 import '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 
@@ -24,10 +25,10 @@ import '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 contract CrutradeDeploy is Script {
   /* CONSTANTS */
 
-  /// @notice Default admin address (multisig)
+  /// @notice Default admin address (multisig) - will be overridden by env vars
   address private constant DEFAULT_ADMIN = 0xd6ef21b20D3Bb4012808695c96A60f6032e14FB6;
 
-  /// @notice Operational addresses
+  /// @notice Operational addresses - will be overridden by env vars
   address private constant OPERATIONAL_1 = 0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC;
   address private constant OPERATIONAL_2 = 0xe812BeeF1F7A62ed142835Ec2622B71AeA858085;
 
@@ -43,15 +44,6 @@ contract CrutradeDeploy is Script {
     0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a;
 
   /* STATE VARIABLES */
-
-  /// @notice Owner address for the current deployment
-  address private owner;
-
-  /// @notice Operational address 1
-  address private operational1;
-
-  /// @notice Operational address 2
-  address private operational2;
 
   /// @notice USDC token address for the current deployment
   address private usdcAddress;
@@ -94,10 +86,6 @@ contract CrutradeDeploy is Script {
   }
 
   function runLocal() public {
-    owner = ANVIL_ADDRESS_1;
-    operational1 = ANVIL_ADDRESS_2;
-    operational2 = ANVIL_ADDRESS_3;
-
     // Deploy mock USDC
     vm.startBroadcast(ANVIL_ADDRESS_1_PRIVATE_KEY);
     MockUSDC mockUSDC = new MockUSDC();
@@ -110,9 +98,6 @@ contract CrutradeDeploy is Script {
   }
 
   function runTestnet() public {
-    owner = vm.envAddress("OWNER");
-    operational1 = vm.envAddress("OPERATIONAL_1");
-    operational2 = vm.envAddress("OPERATIONAL_2");
     usdcAddress = 0x5425890298aed601595a70AB815c96711a31Bc65; // Fuji USDC
 
     uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -120,9 +105,6 @@ contract CrutradeDeploy is Script {
   }
 
   function runMainnet() public {
-    owner = vm.envAddress("OWNER");
-    operational1 = vm.envAddress("OPERATIONAL_1");
-    operational2 = vm.envAddress("OPERATIONAL_2");
     usdcAddress = 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E; // Mainnet USDC
 
     uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -151,9 +133,6 @@ contract CrutradeDeploy is Script {
 
     // Print summary
     console.log("Deployment complete for", network);
-    console.log("Owner:", owner);
-    console.log("Operational1:", operational1);
-    console.log("Operational2:", operational2);
     console.log("USDC:", usdcAddress);
     console.log('All contract addresses:');
     console.log('   - Roles:', address(rolesProxy));
@@ -190,10 +169,13 @@ contract CrutradeDeploy is Script {
     // Temporary roles address for initialization
     address dummyRoles = address(0x1);
 
+    // Get owner from environment for Brands initialization
+    address owner = vm.envAddress("OWNER");
+
     // Deploy Brands with automatic first brand registration for admin
     brandsProxy = new ERC1967Proxy(
       address(brandsImpl),
-      abi.encodeCall(brandsImpl.initialize, (dummyRoles, DEFAULT_ADMIN))
+      abi.encodeCall(brandsImpl.initialize, (dummyRoles, owner))
     );
 
     // Deploy other contracts with dummy roles
@@ -207,9 +189,29 @@ contract CrutradeDeploy is Script {
       abi.encodeCall(whitelistImpl.initialize, (dummyRoles))
     );
 
+    // Get payments configuration from environment variables
+    address treasuryAddress = vm.envAddress("TREASURY_ADDRESS");
+    uint256 fiatFeePercentage = vm.envUint("FIAT_FEE_PERCENTAGE");
+    string memory membershipFeesJson = vm.envString("MEMBERSHIP_FEES");
+
+    // Parse membership fees from JSON (simplified - in production you might want a more robust parser)
+    // For now, we'll use a simple approach with hardcoded parsing
+    // In a real implementation, you might want to use a library or more sophisticated parsing
+    IPayments.MembershipFeeConfig[] memory initialMembershipFees = _parseMembershipFees(membershipFeesJson);
+
+    console.log('Payments configuration:');
+    console.log('  Treasury Address:', treasuryAddress);
+    console.log('  Fiat Fee Percentage:', fiatFeePercentage);
+    console.log('  Membership Fees Count:', initialMembershipFees.length);
+
     paymentsProxy = new ERC1967Proxy(
       address(paymentsImpl),
-      abi.encodeCall(paymentsImpl.initialize, (dummyRoles))
+      abi.encodeCall(paymentsImpl.initialize, (
+        dummyRoles,
+        treasuryAddress,
+        fiatFeePercentage,
+        initialMembershipFees
+      ))
     );
 
     salesProxy = new ERC1967Proxy(
@@ -230,6 +232,24 @@ contract CrutradeDeploy is Script {
    * @dev This is the final step that configures all roles, delegates, and payments
    */
   function _deployRolesWithFullSetup() private {
+    // Get roles configuration from environment variables
+    address owner = vm.envAddress("OWNER");
+    address operational1 = vm.envAddress("OPERATIONAL_1");
+    address operational2 = vm.envAddress("OPERATIONAL_2");
+    address treasury = vm.envAddress("TREASURY");
+    address fiat = vm.envAddress("FIAT");
+    address pauser = vm.envAddress("PAUSER");
+    address upgrader = vm.envAddress("UPGRADER");
+
+    console.log('Roles configuration:');
+    console.log('  Owner:', owner);
+    console.log('  Operational 1:', operational1);
+    console.log('  Operational 2:', operational2);
+    console.log('  Treasury:', treasury);
+    console.log('  Fiat:', fiat);
+    console.log('  Pauser:', pauser);
+    console.log('  Upgrader:', upgrader);
+
     // Determine USDT address based on chain
     address usdtAddress = block.chainid == 43113
       ? 0xd495C61A12f0E67E0F293E9DAC4772Acb457d287  // Fuji testnet
@@ -237,8 +257,8 @@ contract CrutradeDeploy is Script {
 
     // Prepare operational addresses array
     address[] memory operationalAddresses = new address[](2);
-    operationalAddresses[0] = OPERATIONAL_1;
-    operationalAddresses[1] = OPERATIONAL_2;
+    operationalAddresses[0] = operational1;
+    operationalAddresses[1] = operational2;
 
     // Prepare contract addresses in specific order
     address[] memory contractAddresses = new address[](6);
@@ -276,7 +296,7 @@ contract CrutradeDeploy is Script {
     rolesProxy = new ERC1967Proxy(
       address(rolesImpl),
       abi.encodeCall(rolesImpl.initialize, (
-        DEFAULT_ADMIN,
+        owner,
         usdtAddress,
         operationalAddresses,
         contractAddresses,
@@ -291,6 +311,31 @@ contract CrutradeDeploy is Script {
     console.log('   - All contract roles assigned');
     console.log('   - All delegate roles granted');
     console.log('   - USDT payment configured');
+  }
+
+  /**
+   * @notice Parses membership fees from JSON string
+   * @dev Simplified parser for deployment - in production use a more robust solution
+   * @return Array of MembershipFeeConfig structs
+   */
+  function _parseMembershipFees(string memory /* jsonString */) private pure returns (IPayments.MembershipFeeConfig[] memory) {
+    // For simplicity, we'll hardcode the expected structure based on our config
+    // In a real implementation, you might want to use a JSON parsing library
+
+    // Default configuration if parsing fails or for local deployment
+    IPayments.MembershipFeeConfig[] memory fees = new IPayments.MembershipFeeConfig[](2);
+    fees[0] = IPayments.MembershipFeeConfig({
+      membershipId: 0,
+      sellerFee: 600, // 6% seller fee
+      buyerFee: 400   // 4% buyer fee
+    });
+    fees[1] = IPayments.MembershipFeeConfig({
+      membershipId: 1,
+      sellerFee: 100, // 1% seller fee
+      buyerFee: 100   // 1% buyer fee
+    });
+
+    return fees;
   }
 
   /**

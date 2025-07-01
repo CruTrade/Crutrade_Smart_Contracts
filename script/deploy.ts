@@ -3,10 +3,18 @@
 import { $ } from "bun";
 import { argv, env } from "process";
 import { avalanche, avalancheFuji, anvil } from "viem/chains";
-
-const ANVIL_ADDRESS_1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-const ANVIL_ADDRESS_2 = "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC";
-const ANVIL_ADDRESS_3 = "0xe812BeeF1F7A62ed142835Ec2622B71AeA858085";
+import {
+  getPaymentsConfig,
+  validatePaymentsConfig,
+  printPaymentsConfig,
+} from "./payments-config";
+import {
+  getRolesConfig,
+  validateRolesConfig,
+  printRolesConfig,
+  generateEnvVars,
+  checkSecurityIssues,
+} from "./roles-config";
 
 const ANVIL_ADDRESS_1_PRIVATE_KEY =
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -21,9 +29,6 @@ const chainConfigs = {
     chain: anvil,
     rpc: anvil.rpcUrls.default.http[0],
     usdc: undefined, // Will be set after mock deploy
-    owner: ANVIL_ADDRESS_1,
-    operational1: ANVIL_ADDRESS_2,
-    operational2: ANVIL_ADDRESS_3,
     privateKey: ANVIL_ADDRESS_1_PRIVATE_KEY,
     forgeArgs: "",
   },
@@ -31,9 +36,6 @@ const chainConfigs = {
     chain: avalancheFuji,
     rpc: avalancheFuji.rpcUrls.default.http[0],
     usdc: "0x5425890298aed601595a70AB815c96711a31Bc65",
-    owner: env.OWNER,
-    operational1: env.OPERATIONAL_1,
-    operational2: env.OPERATIONAL_2,
     privateKey: env.PRIVATE_KEY,
     forgeArgs: "",
   },
@@ -41,9 +43,6 @@ const chainConfigs = {
     chain: avalanche,
     rpc: avalanche.rpcUrls.default.http[0],
     usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
-    owner: env.OWNER,
-    operational1: env.OPERATIONAL_1,
-    operational2: env.OPERATIONAL_2,
     privateKey: env.PRIVATE_KEY,
     forgeArgs: "",
   },
@@ -63,30 +62,70 @@ if (!config.privateKey) {
   console.error(`Missing PRIVATE_KEY for network: ${network}`);
   process.exit(1);
 }
-if (!config.owner) {
-  console.error(`Missing OWNER address for network: ${network}`);
-  process.exit(1);
-}
-if (!config.operational1 || !config.operational2) {
-  console.error(
-    `Missing OPERATIONAL_1 or OPERATIONAL_2 address for network: ${network}`
-  );
+
+// Get and validate roles configuration
+const rolesConfig = getRolesConfig(network);
+
+// Get and validate payments configuration
+const paymentsConfig = getPaymentsConfig(network);
+
+// Override treasury address with the roles config treasury address
+paymentsConfig.treasuryAddress = rolesConfig.treasury;
+
+console.log(`\n=== Deployment Configuration for ${network.toUpperCase()} ===`);
+console.log(`USDC: ${config.usdc || "MockUSDC (will be deployed)"}`);
+
+// Print and validate roles configuration
+printRolesConfig(rolesConfig, network);
+
+if (!validateRolesConfig(rolesConfig, network)) {
+  console.error("❌ Roles configuration validation failed!");
   process.exit(1);
 }
 
-// Compose env for forge
+// Check for security issues
+const securityWarnings = checkSecurityIssues(rolesConfig);
+if (securityWarnings.length > 0) {
+  console.log("\n🔒 Security Warnings:");
+  securityWarnings.forEach((warning) => console.log(warning));
+  console.log("");
+}
+
+console.log("✅ Roles configuration validated successfully!");
+
+// Print and validate payments configuration
+printPaymentsConfig(paymentsConfig);
+
+if (!validatePaymentsConfig(paymentsConfig)) {
+  console.error("❌ Payments configuration validation failed!");
+  process.exit(1);
+}
+
+console.log("✅ Payments configuration validated successfully!");
+
+// Generate environment variables
+const rolesEnvVars = generateEnvVars(rolesConfig);
+
+// Compose env for forge with both configurations
 const envVars = {
   ...env,
   NETWORK: network,
-  OWNER: config.owner,
-  OPERATIONAL_1: config.operational1,
-  OPERATIONAL_2: config.operational2,
   USDC_ADDRESS: config.usdc || "",
+  // Roles configuration
+  ...rolesEnvVars,
+  // Payments configuration
+  TREASURY_ADDRESS: paymentsConfig.treasuryAddress,
+  FIAT_FEE_PERCENTAGE: paymentsConfig.fiatFeePercentage.toString(),
+  MEMBERSHIP_FEES: JSON.stringify(paymentsConfig.membershipFees),
 };
+
+console.log("\n🚀 Starting deployment...");
 
 // For local, usdc is set by the deploy script after deploying MockUSDC
 await $`forge script script/deploy.s.sol --rpc-url ${config.rpc} --private-key ${config.privateKey} --broadcast --via-ir ${config.forgeArgs}`.env(
   envVars
 );
+
+console.log("\n✅ Deployment completed successfully!");
 
 // await $`bun script/update-package.ts`;
