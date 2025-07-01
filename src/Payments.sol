@@ -31,34 +31,65 @@ contract Payments is PaymentsBase {
   }
 
   /**
-   * @notice Initializes the contract with the roles contract address
+   * @notice Initializes the contract with the roles contract address and configurable parameters
    * @param _roles Address of the roles contract
-   * @dev Sets up initial fee structure and configuration
+   * @param _treasuryAddress Address of the treasury wallet
+   * @param _fiatFeePercentage Initial fiat fee percentage (in basis points)
+   * @param _initialMembershipFees Array of initial membership fee configurations
+   * @dev Sets up initial fee structure and configuration with configurable parameters
    */
-  function initialize(address _roles) public initializer {
+  function initialize(
+    address _roles,
+    address _treasuryAddress,
+    uint256 _fiatFeePercentage,
+    MembershipFeeConfig[] calldata _initialMembershipFees
+  ) public initializer {
     __PaymentBase_init();
     __ModifiersBase_init(_roles, PAYMENTS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
 
+    // Validate treasury address
+    if (_treasuryAddress == address(0)) revert ZeroAddress();
+    if (_fiatFeePercentage > BPS) revert InvalidPercentage(_fiatFeePercentage);
+
     // Initialize fee percentages and service fees
-    _fiatFeePercentage = 300; // 3%
+    _fiatFeePercentage = _fiatFeePercentage;
 
     // Initialize treasury fee (100%)
+    // Sends all platform fees to the treasury address
     _fees.push(
-      Fee(TREASURY, 10000, 0xd6ef21b20D3Bb4012808695c96A60f6032e14FB6)
+      Fee(TREASURY, 10000, _treasuryAddress)
     );
     _feeIndices[TREASURY] = _fees.length;
 
     // Initialize membership fee structure
-    _initializeFees();
+    _initializeMembershipFees(_initialMembershipFees);
   }
 
   /**
-   * @dev Initializes the fee structure for different membership levels
+   * @dev Initializes the membership fee structure with configurable parameters
+   * @param _initialMembershipFees Array of membership fee configurations
    */
-  function _initializeFees() private {
-    // Set fee percentages for first 2 membership tiers
-    _setMembershipFees(0, 600, 400); // 6% seller, 4% buyer
-    _setMembershipFees(1, 100, 100); // 1% seller, 1% buyer
+  function _initializeMembershipFees(MembershipFeeConfig[] calldata _initialMembershipFees) private {
+    for (uint256 i = 0; i < _initialMembershipFees.length; i++) {
+      MembershipFeeConfig memory config = _initialMembershipFees[i];
+      _setMembershipFees(config.membershipId, config.sellerFee, config.buyerFee);
+    }
+  }
+
+  /**
+   * @notice Updates the treasury address
+   * @param newTreasuryAddress New treasury address
+   * @dev Can only be called by an account with the OWNER role
+   */
+  function updateTreasuryAddress(address newTreasuryAddress) external onlyRole(OWNER) {
+    if (newTreasuryAddress == address(0)) revert ZeroAddress();
+
+    uint256 index = _feeIndices[TREASURY];
+    if (index == 0) revert FeeNotFound(TREASURY);
+
+    _fees[index - 1].wallet = newTreasuryAddress;
+
+    emit FeeUpdated(TREASURY, _fees[index - 1].percentage, newTreasuryAddress);
   }
 
   /* FEE MANAGEMENT FUNCTIONS */
