@@ -2180,4 +2180,189 @@ contract CrutradeEcosystemTest is Test {
         return block.timestamp + (validityMinutes * 60);
     }
 
+    // === MISSING FUNCTION TESTS ===
+
+    function test_GetNonceFunction() public {
+        // Test initial nonce
+        assertEq(sales.getNonce(seller), 0);
+        assertEq(sales.getNonce(buyer), 0);
+
+        // Setup and list item to increment nonce
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        vm.startPrank(operational);
+        uint256 listNonce = sales.getNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify nonce was incremented
+        assertEq(sales.getNonce(seller), 1);
+        assertEq(sales.getNonce(buyer), 0); // Buyer nonce unchanged
+
+        vm.stopPrank();
+    }
+
+    function test_GetDomainSeparator() public {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+        assertTrue(domainSeparator != bytes32(0), "Domain separator should not be zero");
+
+        // Verify it's consistent across calls
+        assertEq(sales.getDomainSeparator(), domainSeparator);
+    }
+
+    function test_GetSalesBySellerPaginated() public {
+        // Setup multiple sales for the same seller
+        uint256 saleId1 = _setupAndListItem();
+
+        // Create another wrapper and list it
+        vm.startPrank(operational);
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "https://example.com/metadata/2",
+            metaKey: "item_002",
+            amount: 0,
+            tokenId: 2,
+            brandId: 0,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+        wrappers.imports(seller, wrapperData);
+        vm.stopPrank();
+
+        _setupAndListItemWithId(2); // This creates sale ID 2
+
+        // Test pagination
+        (uint256[] memory saleIds, uint256 total) = sales.getSalesBySellerPaginated(seller, 0, 1);
+        assertEq(saleIds.length, 1);
+        assertEq(total, 2);
+
+        // Test second page
+        (uint256[] memory secondPage, ) = sales.getSalesBySellerPaginated(seller, 1, 1);
+        assertEq(secondPage.length, 1);
+
+        // Test empty page
+        (uint256[] memory emptyPage, ) = sales.getSalesBySellerPaginated(seller, 10, 1);
+        assertEq(emptyPage.length, 0);
+    }
+
+    function test_GetAllDurationsPaginated() public {
+        // Test initial durations (set up in setUp)
+        (uint256[] memory durationIds, uint256[] memory durationValues, uint256 total) = sales.getAllDurationsPaginated(0, 10);
+        assertEq(total, 3); // 3 durations set up in setUp
+        assertEq(durationIds.length, 3);
+        assertEq(durationValues.length, 3);
+
+        // Test pagination
+        (durationIds, durationValues, total) = sales.getAllDurationsPaginated(0, 2);
+        assertEq(durationIds.length, 2);
+        assertEq(durationValues.length, 2);
+        assertEq(total, 3);
+
+        // Test second page
+        (durationIds, durationValues, ) = sales.getAllDurationsPaginated(2, 2);
+        assertEq(durationIds.length, 1);
+        assertEq(durationValues.length, 1);
+    }
+
+    function test_GetActiveSchedules() public {
+        // Set up some schedules
+        vm.startPrank(admin);
+        uint256[] memory scheduleIds = new uint256[](2);
+        uint8[] memory daysOfWeek = new uint8[](2);
+        uint8[] memory hoursValue = new uint8[](2);
+        uint8[] memory minutesValue = new uint8[](2);
+
+        scheduleIds[0] = 1;
+        scheduleIds[1] = 2;
+        daysOfWeek[0] = 1; // Monday
+        daysOfWeek[1] = 5; // Friday
+        hoursValue[0] = 10;
+        hoursValue[1] = 15;
+        minutesValue[0] = 30;
+        minutesValue[1] = 0;
+
+        sales.setSchedules(scheduleIds, daysOfWeek, hoursValue, minutesValue);
+        vm.stopPrank();
+
+        // Get active schedules
+        (uint256[] memory activeScheduleIds, uint8[] memory dayWeeks, uint8[] memory hourValues, uint8[] memory minuteValues) = sales.getActiveSchedules();
+
+        assertEq(activeScheduleIds.length, 2);
+        assertEq(dayWeeks.length, 2);
+        assertEq(hourValues.length, 2);
+        assertEq(minuteValues.length, 2);
+
+        // Verify the schedules match what we set
+        assertEq(activeScheduleIds[0], 1);
+        assertEq(dayWeeks[0], 1);
+        assertEq(hourValues[0], 10);
+        assertEq(minuteValues[0], 30);
+
+        assertEq(activeScheduleIds[1], 2);
+        assertEq(dayWeeks[1], 5);
+        assertEq(hourValues[1], 15);
+        assertEq(minuteValues[1], 0);
+    }
+
+    function test_SetAndGetListingDelay() public {
+        // Test initial listing delay
+        uint256 initialDelay = sales.getListingDelay();
+        assertTrue(initialDelay > 0, "Initial listing delay should be set");
+
+        // Set new listing delay
+        vm.startPrank(admin);
+        uint256 newDelay = 3600; // 1 hour
+        sales.setListingDelay(newDelay);
+        vm.stopPrank();
+
+        // Verify the delay was updated
+        assertEq(sales.getListingDelay(), newDelay);
+
+        // Test setting zero delay (should work)
+        vm.startPrank(admin);
+        sales.setListingDelay(0);
+        vm.stopPrank();
+        assertEq(sales.getListingDelay(), 0);
+    }
+
+    function test_UnauthorizedSetListingDelay() public {
+        // Try to set listing delay with unauthorized account
+        address unauthorized = makeAddr("unauthorized");
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        sales.setListingDelay(3600);
+        vm.stopPrank();
+    }
+
 }
