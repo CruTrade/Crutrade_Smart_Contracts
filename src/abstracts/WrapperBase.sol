@@ -111,7 +111,7 @@ abstract contract WrapperBase is
         __ERC721Pausable_init();
         __UUPSUpgradeable_init();
         __ERC721_init(name, symbol);
-        __ModifiersBase_init(_roles);
+        __ModifiersBase_init(_roles, WRAPPERS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
         _httpsBaseURI = baseURI;
         _nextWrapperId = 1; // Start from 1 to avoid confusion with default value
     }
@@ -209,7 +209,7 @@ abstract contract WrapperBase is
         bytes32 collection
     ) internal view returns (WrapperData[] memory) {
         if (!_isValidCollection(collection)) revert CollectionNotFound(collection);
-        
+
         uint256[] memory wrapperIds = _wrappersByCollection[collection].values();
         uint256 length = wrapperIds.length;
 

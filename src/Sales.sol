@@ -156,171 +156,207 @@ contract Sales is SalesBase, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     /**
      * @notice Lists items for sale
      * @param seller The seller's address
-     * @param hash Transaction hash for signature
+     * @param nonce Nonce to prevent replay attacks
+     * @param expiry Timestamp when signature expires
      * @param signature The signature to verify
-     * @param erc20 The payment token address
-     * @param saleInputs List of sale inputs
+     * @param wrapperId ID of the wrapped NFT
+     * @param directSaleId Direct sale ID
+     * @param isFiat Whether this is a fiat payment
+     * @param price Sale price
+     * @param expireType Duration type for the sale
+     * @param erc20 Payment token address
      */
     function list(
         address seller,
-        bytes32 hash,
+        uint256 nonce,
+        uint256 expiry,
         bytes calldata signature,
-        address erc20,
-        ListInputs[] calldata saleInputs
+        uint256 wrapperId,
+        uint256 directSaleId,
+        bool isFiat,
+        uint256 price,
+        uint256 expireType,
+        address erc20
     )
         external
         whenNotPaused
         nonReentrant
         onlyRole(OPERATIONAL)
         onlyWhitelisted(seller)
-        checkSignature(seller, hash, signature)
+        checkListSignature(
+            seller,
+            this.list.selector,
+            nonce,
+            expiry,
+            wrapperId,
+            directSaleId,
+            isFiat,
+            price,
+            expireType,
+            signature
+        )
     {
-        uint256 length = saleInputs.length;
-        if (length == 0) revert InvalidSaleOperation("Empty input array");
+        // Convert to the internal format
+        ListInputs memory saleInputs = ListInputs({
+            price: price,
+            wrapperId: wrapperId,
+            durationId: expireType
+        });
 
-        ISales.Date[] memory dates = new ISales.Date[](length);
-        uint256[] memory salesIds = new uint256[](length);
-        IPayments.ServiceFee[] memory fees = new IPayments.ServiceFee[](length);
-        ListOutputs[] memory outputs = new ListOutputs[](length);
+        ISales.Date memory date;
+        IPayments.ServiceFee memory fee;
+        ListOutputs memory output;
 
         // Get the next scheduled activation time
         uint256 nextScheduleTime = getNextScheduleTime();
 
-        unchecked {
-            for (uint256 i; i < length; i++) {
-                uint256 saleId = _nextSaleId++;
-                (
-                    salesIds[i],
-                    dates[i],
-                    fees[i],
-                    outputs[i]
-                ) = _processSingleListing(
-                    seller,
-                    erc20,
-                    saleInputs[i],
-                    nextScheduleTime,
-                    saleId
-                );
-            }
-        }
+        uint256 saleId = _nextSaleId++;
+        (
+            date,
+            fee,
+            output
+        ) = _processSingleListing(
+            seller,
+            erc20,
+            saleInputs,
+            nextScheduleTime,
+            saleId
+        );
 
-        emit List(seller, salesIds, dates, fees, outputs);
+        emit List(seller, saleId, date, fee, output);
     }
 
     /**
      * @notice Buys items from sales
      * @param buyer The buyer's address
-     * @param hash Transaction hash for signature
+     * @param nonce Nonce to prevent replay attacks
+     * @param expiry Timestamp when signature expires
      * @param signature The signature to verify
-     * @param erc20 The payment token address
-     * @param salesIds List of sale IDs to buy
+     * @param directSaleId Direct sale ID
+     * @param saleId Sale ID to buy
+     * @param isFiat Whether this is a fiat payment
+     * @param erc20 Payment token address
      */
     function buy(
         address buyer,
-        bytes32 hash,
+        uint256 nonce,
+        uint256 expiry,
         bytes calldata signature,
-        address erc20,
-        uint256[] calldata salesIds
+        uint256 directSaleId,
+        uint256 saleId,
+        bool isFiat,
+        address erc20
     )
         external
         whenNotPaused
         nonReentrant
         onlyRole(OPERATIONAL)
         onlyWhitelisted(buyer)
-        checkSignature(buyer, hash, signature)
+        checkBuySignature(
+            buyer,
+            this.buy.selector,
+            nonce,
+            expiry,
+            directSaleId,
+            saleId,
+            isFiat,
+            signature
+        )
     {
-        uint256 length = salesIds.length;
-        if (length == 0) revert InvalidSaleOperation("Empty input array");
-        IPayments.TransactionFees[] memory fees = new IPayments.TransactionFees[](length);
 
-        unchecked {
-            for (uint256 i; i < length; i++) {
-                fees[i] = _processSinglePurchase(buyer, erc20, salesIds[i]);
-            }
-        }
+        IPayments.TransactionFees memory fees = _processSinglePurchase(buyer, erc20, saleId);
 
-        emit Buy(buyer, salesIds, fees);
+        emit Buy(buyer, saleId, fees);
     }
 
     /**
-     * @notice Withdraws listed items
+     * @notice Withdraws items from sales
      * @param seller The seller's address
-     * @param hash Transaction hash for signature
+     * @param nonce Nonce to prevent replay attacks
+     * @param expiry Timestamp when signature expires
      * @param signature The signature to verify
-     * @param erc20 The payment token address
-     * @param salesIds List of sale IDs to withdraw
+     * @param directSaleId Direct sale ID
+     * @param saleId Sale ID to withdraw
+     * @param isFiat Whether this is a fiat payment
+     * @param erc20 Payment token address
      */
     function withdraw(
         address seller,
-        bytes32 hash,
+        uint256 nonce,
+        uint256 expiry,
         bytes calldata signature,
-        address erc20,
-        uint256[] calldata salesIds
+        uint256 directSaleId,
+        uint256 saleId,
+        bool isFiat,
+        address erc20
     )
         external
         whenNotPaused
         nonReentrant
         onlyRole(OPERATIONAL)
         onlyWhitelisted(seller)
-        checkSignature(seller, hash, signature)
+        checkWithdrawSignature(
+            seller,
+            this.withdraw.selector,
+            nonce,
+            expiry,
+            directSaleId,
+            saleId,
+            isFiat,
+            signature
+        )
     {
-        uint256 length = salesIds.length;
-        if (length == 0) revert InvalidSaleOperation("Empty input array");
+        IPayments.ServiceFee memory fee = _processSingleWithdraw(seller, erc20, saleId);
 
-        IPayments.ServiceFee[] memory fees = new IPayments.ServiceFee[](length);
-
-        unchecked {
-            for (uint256 i; i < length; i++) {
-                fees[i] = _processSingleWithdraw(seller, erc20, salesIds[i]);
-            }
-        }
-
-        emit Withdraw(seller, salesIds, fees);
+        emit Withdraw(seller, saleId, fee);
     }
 
     /**
-     * @notice Renews listed items
+     * @notice Renews items in sales
      * @param seller The seller's address
-     * @param hash Transaction hash for signature
+     * @param nonce Nonce to prevent replay attacks
+     * @param expiry Timestamp when signature expires
      * @param signature The signature to verify
-     * @param erc20 The payment token address
-     * @param salesIds List of sale IDs to renew
+     * @param directSaleId Direct sale ID
+     * @param saleId Sale ID to renew
+     * @param isFiat Whether this is a fiat payment
+     * @param expireType New duration type for the renewal
+     * @param erc20 Payment token address
      */
     function renew(
         address seller,
-        bytes32 hash,
+        uint256 nonce,
+        uint256 expiry,
         bytes calldata signature,
-        address erc20,
-        uint256[] calldata salesIds
+        uint256 directSaleId,
+        uint256 saleId,
+        bool isFiat,
+        uint256 expireType,
+        address erc20
     )
         external
         whenNotPaused
         nonReentrant
         onlyRole(OPERATIONAL)
         onlyWhitelisted(seller)
-        checkSignature(seller, hash, signature)
+        checkRenewSignature(
+            seller,
+            this.renew.selector,
+            nonce,
+            expiry,
+            directSaleId,
+            saleId,
+            isFiat,
+            expireType,
+            signature
+        )
     {
-        uint256 length = salesIds.length;
-        if (length == 0) revert InvalidSaleOperation("Empty input array");
+        ISales.Date memory date;
+        IPayments.ServiceFee memory fee;
 
-        ISales.Date[] memory dates = new ISales.Date[](length);
-        IPayments.ServiceFee[] memory fees = new IPayments.ServiceFee[](length);
+        (date, fee) = _processSingleRenewal(seller, erc20, saleId, getNextScheduleTime());
 
-        // Get the next scheduled activation time
-        uint256 nextScheduleTime = getNextScheduleTime();
-
-        unchecked {
-            for (uint256 i; i < length; i++) {
-                (dates[i], fees[i]) = _processSingleRenewal(
-                    seller,
-                    erc20,
-                    salesIds[i],
-                    nextScheduleTime
-                );
-            }
-        }
-
-        emit Renew(seller, salesIds, dates, fees);
+        emit Renew(seller, saleId, date, fee);
     }
 
     /* VIEW FUNCTIONS */

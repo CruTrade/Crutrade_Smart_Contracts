@@ -71,7 +71,7 @@ abstract contract BrandsBase is
         __ERC721Pausable_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
-        __ModifiersBase_init(_roles);
+        __ModifiersBase_init(_roles, BRANDS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
 
         _baseURIString = baseURI;
         _nextBrandId = 1; // Start from 1 to avoid confusion with default value

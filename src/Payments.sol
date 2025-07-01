@@ -37,7 +37,7 @@ contract Payments is PaymentsBase {
    */
   function initialize(address _roles) public initializer {
     __PaymentBase_init();
-    __ModifiersBase_init(_roles);
+    __ModifiersBase_init(_roles, PAYMENTS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
 
     // Initialize fee percentages and service fees
     _fiatFeePercentage = 300; // 3%
@@ -145,7 +145,8 @@ contract Payments is PaymentsBase {
 
   /**
    * @notice Sends tokens from one address to another
-   * @param hash Hash of the transaction data
+   * @param nonce Nonce to prevent replay attacks
+   * @param expiry Timestamp when signature expires
    * @param signature Sender's signature
    * @param erc20 Token address
    * @param from Address sending the tokens
@@ -154,7 +155,8 @@ contract Payments is PaymentsBase {
    * @dev Can only be called by an account with the OPERATIONAL role
    */
   function send(
-    bytes32 hash,
+    uint256 nonce,
+    uint256 expiry,
     bytes calldata signature,
     address erc20,
     address from,
@@ -164,7 +166,7 @@ contract Payments is PaymentsBase {
     external
     onlyRole(OPERATIONAL)
     onlyWhitelisted(from)
-    checkSignature(from, hash, signature)
+    checkSignatureEIP712(from, this.send.selector, nonce, expiry, keccak256(abi.encode(erc20, to, amount)), signature)
   {
     if (erc20 == address(0)) revert InvalidTokenAddress();
     if (from == address(0) || to == address(0)) revert ZeroAddress();
