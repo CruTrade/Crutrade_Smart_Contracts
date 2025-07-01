@@ -94,73 +94,73 @@ abstract contract SalesBase is
     /**
      * @notice Emitted when items are listed for sale
      * @param wallet Seller address
-     * @param salesIds IDs of the sales
-     * @param dates Date information for each sale
-     * @param serviceFees Service fees for each sale
-     * @param outputs Output data for each sale
+     * @param salesId ID of the sale
+     * @param date Date information for the sale
+     * @param fee Service fee for the sale
+     * @param output Output data for the sale
      */
     event List(
         address wallet,
-        uint256[] salesIds,
-        ISales.Date[] dates,
-        IPayments.ServiceFee[] serviceFees,
-        ListOutputs[] outputs
+        uint256 salesId,
+        ISales.Date date,
+        IPayments.ServiceFee fee,
+        ListOutputs output
     );
 
     /**
      * @notice Emitted when items are purchased
      * @param wallet Buyer address
-     * @param salesIds IDs of the purchased sales
-     * @param fees Transaction fees for each sale
+     * @param salesId ID of the sale
+     * @param fees Transaction fees for the sale
      */
-    event Buy(address wallet, uint256[] salesIds, IPayments.TransactionFees[] fees);
+    event Buy(address wallet, uint256 salesId, IPayments.TransactionFees fees);
 
     /**
      * @notice Emitted when sales are renewed
      * @param wallet Seller address
-     * @param salesIds IDs of the renewed sales
-     * @param dates New date information for each sale
-     * @param serviceFees Service fees for each renewal
+     * @param salesId ID of the sale
+     * @param date New date information for the sale
+     * @param fee Service fee for the renewal
      */
     event Renew(
         address wallet,
-        uint256[] salesIds,
-        ISales.Date[] dates,
-        IPayments.ServiceFee[] serviceFees
+        uint256 salesId,
+        ISales.Date date,
+        IPayments.ServiceFee fee
     );
 
     /**
      * @notice Emitted when sales are withdrawn
      * @param wallet Seller address
-     * @param salesIds IDs of the withdrawn sales
-     * @param serviceFees Service fees for each withdrawal
+     * @param salesId ID of the sale
+     * @param fee Service fee for the withdrawal
      */
     event Withdraw(
         address wallet,
-        uint256[] salesIds,
-        IPayments.ServiceFee[] serviceFees
+        uint256 salesId,
+        IPayments.ServiceFee fee
     );
 
     /**
      * @notice Emitted when a listing is cancelled
-     * @param salesIds IDs of the cancelled sales
+     * @param salesId ID of the sale
      * @param seller Seller address
      * @param operator Address that performed the cancellation
      */
     event ListingCancelled(
-        uint256[] salesIds,
+        uint256 salesId,
         address indexed seller,
         address indexed operator
     );
 
     /**
      * @notice Emitted when a renewal is cancelled
-     * @param salesIds IDs of the cancelled renewals
+     * @param salesId ID of the sale
      * @param seller Seller address
      * @param operator Address that performed the cancellation
      */
     event RenewCancelled(
-        uint256[] salesIds,
+        uint256 salesId,
         address indexed seller,
         address indexed operator
     );
@@ -210,7 +210,7 @@ abstract contract SalesBase is
      */
     function __SalesBase_init(address _roles) internal onlyInitializing {
         __Pausable_init();
-        __ModifiersBase_init(_roles);
+        __ModifiersBase_init(_roles, SALES_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
         __ScheduleBase_init();
 
         _durations[0] = 56 days; // Default duration
@@ -388,9 +388,8 @@ abstract contract SalesBase is
      * @param input Listing input data
      * @param nextScheduleTime Next scheduled activation time
      * @param saleId ID assigned to the sale
-     * @return Sale ID
      * @return date Date information
-     * @return serviceFee Service fee information
+     * @return fee Service fee information
      * @return output Output data
      */
     function _processSingleListing(
@@ -402,7 +401,6 @@ abstract contract SalesBase is
     )
         internal
         returns (
-            uint256,
             ISales.Date memory,
             IPayments.ServiceFee memory,
             ListOutputs memory
@@ -466,7 +464,7 @@ abstract contract SalesBase is
         // Prepare date
         ISales.Date memory date = ISales.Date({expireListDate: end, expireUpcomeDate: start});
 
-        return (saleId, date, serviceFee, output);
+        return (date, serviceFee, output);
     }
 
     /**

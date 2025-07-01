@@ -44,7 +44,7 @@ abstract contract WhitelistBase is
     function __WhitelistBase_init(address _roles) internal onlyInitializing {
         __Pausable_init();
         __UUPSUpgradeable_init();
-        __ModifiersBase_init(_roles);
+        __ModifiersBase_init(_roles, WHITELIST_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
     }
 
     /* WHITELIST MANAGEMENT */

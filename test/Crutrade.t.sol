@@ -48,7 +48,7 @@ contract TestModifierContract is ModifiersBase {
     bool public wasCalled = false;
 
     function initialize(address _roles) external initializer {
-        __ModifiersBase_init(_roles);
+        __ModifiersBase_init(_roles, DEFAULT_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
     }
 
     function functionOnlyDelegatedRole() external onlyDelegatedRole {
@@ -193,6 +193,9 @@ contract CrutradeEcosystemTest is Test {
 
         // Grant TREASURY role to treasury address (needed for fee operations)
         roles.grantRole(TREASURY, treasury);
+
+        // Grant PAUSER role to admin (needed for pause/unpause functionality)
+        roles.grantRole(PAUSER, admin);
 
         // Grant delegate roles
         roles.grantDelegateRole(address(sales));
@@ -359,17 +362,38 @@ contract CrutradeEcosystemTest is Test {
 
         // List item for sale
         vm.startPrank(operational);
-        bytes32 listHash = keccak256(abi.encodePacked("list", block.timestamp));
-        bytes memory listSig = _signHash(listHash, seller);
+        uint256 fuzzListNonce = _getCurrentNonce(seller);
+        uint256 fuzzListExpiry = _calculateExpiry(30);
+        uint256 fuzzListDirectSaleId = 1;
+        bool fuzzListIsFiat = false;
+        uint256 fuzzListPrice = 1000 * 10**18;
+        uint256 fuzzListExpireType = 0;
+        address fuzzListErc20 = address(mockToken);
 
-        SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
-        listInputs[0] = SalesBase.ListInputs({
-            price: 1000 * 10**18,
-            wrapperId: wrapperId,
-            durationId: 0
-        });
+        bytes memory fuzzListSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            fuzzListNonce,
+            fuzzListExpiry,
+            wrapperId,
+            fuzzListDirectSaleId,
+            fuzzListIsFiat,
+            fuzzListPrice,
+            fuzzListExpireType
+        );
 
-        sales.list(seller, listHash, listSig, address(mockToken), listInputs);
+        sales.list(
+            seller,
+            fuzzListNonce,
+            fuzzListExpiry,
+            fuzzListSig,
+            wrapperId,
+            fuzzListDirectSaleId,
+            fuzzListIsFiat,
+            fuzzListPrice,
+            fuzzListExpireType,
+            fuzzListErc20
+        );
 
         // Verify listing
         ISales.Sale memory sale = sales.getSale(1);
@@ -410,13 +434,23 @@ contract CrutradeEcosystemTest is Test {
 
         // Buy item
         vm.startPrank(operational);
-        bytes32 buyHash = keccak256(abi.encodePacked("buy", block.timestamp));
-        bytes memory buySig = _signHash(buyHash, buyer);
+        uint256 buyNonce = _getCurrentNonce(buyer);
+        uint256 buyExpiry = _calculateExpiry(30);
+        uint256 buyDirectSaleId = 0;
+        bool buyIsFiat = false;
+        address buyErc20 = address(mockToken);
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = saleId;
+        bytes memory buySig = _generateBuySignature(
+            buyer,
+            sales.buy.selector,
+            buyNonce,
+            buyExpiry,
+            buyDirectSaleId,
+            saleId,
+            buyIsFiat
+        );
 
-        sales.buy(buyer, buyHash, buySig, address(mockToken), saleIds);
+        sales.buy(buyer, buyNonce, buyExpiry, buySig, buyDirectSaleId, saleId, buyIsFiat, buyErc20);
 
         // Verify purchase
         ISales.Sale memory soldSale = sales.getSale(saleId);
@@ -452,13 +486,22 @@ contract CrutradeEcosystemTest is Test {
 
         // Withdraw item
         vm.startPrank(operational);
-        bytes32 withdrawHash = keccak256(abi.encodePacked("withdraw", block.timestamp));
-        bytes memory withdrawSig = _signHash(withdrawHash, seller);
+        uint256 withdrawNonce = _getCurrentNonce(seller);
+        uint256 withdrawExpiry = _calculateExpiry(30);
+        uint256 directSaleId = 1;
+        bool withdrawIsFiat = false;
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = saleId;
+        bytes memory withdrawSig = _generateWithdrawSignature(
+            seller,
+            sales.withdraw.selector,
+            withdrawNonce,
+            withdrawExpiry,
+            directSaleId,
+            saleId,
+            withdrawIsFiat
+        );
 
-        sales.withdraw(seller, withdrawHash, withdrawSig, address(mockToken), saleIds);
+        sales.withdraw(seller, withdrawNonce, withdrawExpiry, withdrawSig, directSaleId, saleId, withdrawIsFiat, address(mockToken));
 
         // Verify withdrawal - sale should be deleted/inactive
         vm.expectRevert(); // Should revert as sale no longer exists
@@ -484,13 +527,25 @@ contract CrutradeEcosystemTest is Test {
 
         // Renew item
         vm.startPrank(operational);
-        bytes32 renewHash = keccak256(abi.encodePacked("renew", block.timestamp));
-        bytes memory renewSig = _signHash(renewHash, seller);
+        uint256 renewNonce = _getCurrentNonce(seller);
+        uint256 renewExpiry = _calculateExpiry(30);
+        uint256 renewDirectSaleId = 0;
+        bool renewIsFiat = false;
+        uint256 renewExpireType = 0;
+        address renewErc20 = address(mockToken);
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = saleId;
+        bytes memory renewSig = _generateRenewSignature(
+            seller,
+            sales.renew.selector,
+            renewNonce,
+            renewExpiry,
+            renewDirectSaleId,
+            saleId,
+            renewIsFiat,
+            renewExpireType
+        );
 
-        sales.renew(seller, renewHash, renewSig, address(mockToken), saleIds);
+        sales.renew(seller, renewNonce, renewExpiry, renewSig, renewDirectSaleId, saleId, renewIsFiat, renewExpireType, renewErc20);
 
         // Verify renewal
         ISales.Sale memory renewedSale = sales.getSale(saleId);
@@ -618,17 +673,38 @@ contract CrutradeEcosystemTest is Test {
 
         // List with fuzzed price
         vm.startPrank(operational);
-        bytes32 listHash = keccak256(abi.encodePacked("list", block.timestamp, price));
-        bytes memory listSig = _signHash(listHash, seller);
+        uint256 fuzzListNonce = _getCurrentNonce(seller);
+        uint256 fuzzListExpiry = _calculateExpiry(30);
+        uint256 fuzzListDirectSaleId = 1;
+        bool fuzzListIsFiat = false;
+        uint256 fuzzListPrice = price;
+        uint256 fuzzListExpireType = 0;
+        address fuzzListErc20 = address(mockToken);
 
-        SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
-        listInputs[0] = SalesBase.ListInputs({
-            price: price,
-            wrapperId: wrapperId,
-            durationId: 0
-        });
+        bytes memory fuzzListSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            fuzzListNonce,
+            fuzzListExpiry,
+            wrapperId,
+            fuzzListDirectSaleId,
+            fuzzListIsFiat,
+            fuzzListPrice,
+            fuzzListExpireType
+        );
 
-        sales.list(seller, listHash, listSig, address(mockToken), listInputs);
+        sales.list(
+            seller,
+            fuzzListNonce,
+            fuzzListExpiry,
+            fuzzListSig,
+            wrapperId,
+            fuzzListDirectSaleId,
+            fuzzListIsFiat,
+            fuzzListPrice,
+            fuzzListExpireType,
+            fuzzListErc20
+        );
 
         ISales.Sale memory sale = sales.getSale(1);
         assertEq(sale.price, price);
@@ -772,17 +848,38 @@ contract CrutradeEcosystemTest is Test {
 
         // 4. List item with premium pricing
         vm.startPrank(operational);
-        bytes32 listHash = keccak256(abi.encodePacked("premium_list", block.timestamp));
-        bytes memory listSig = _signHash(listHash, seller);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 5000 * 10**18; // Premium price
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
 
-        SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
-        listInputs[0] = SalesBase.ListInputs({
-            price: 5000 * 10**18, // Premium price
-            wrapperId: 1,
-            durationId: 0
-        });
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperData[0].tokenId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
 
-        sales.list(seller, listHash, listSig, address(mockToken), listInputs);
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperData[0].tokenId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
 
         // Fast forward to sale start time
         ISales.Sale memory saleInfo = sales.getSale(1);
@@ -791,18 +888,28 @@ contract CrutradeEcosystemTest is Test {
         }
 
         // 5. Execute purchase and verify complex fee calculations
-        bytes32 buyHash = keccak256(abi.encodePacked("premium_buy", block.timestamp));
-        bytes memory buySig = _signHash(buyHash, buyer);
+        uint256 buyNonce = _getCurrentNonce(buyer);
+        uint256 buyExpiry = _calculateExpiry(30);
+        uint256 buyDirectSaleId = 0;
+        bool buyIsFiat = false;
+        address buyErc20 = address(mockToken);
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = 1;
+        bytes memory buySig = _generateBuySignature(
+            buyer,
+            sales.buy.selector,
+            buyNonce,
+            buyExpiry,
+            buyDirectSaleId,
+            1,
+            buyIsFiat
+        );
 
         // Record balances before
         uint256 buyerBalanceBefore = mockToken.balanceOf(buyer);
         uint256 sellerBalanceBefore = mockToken.balanceOf(seller);
         uint256 feeReceiverBalanceBefore = mockToken.balanceOf(feeReceiver);
 
-        sales.buy(buyer, buyHash, buySig, address(mockToken), saleIds);
+        sales.buy(buyer, buyNonce, buyExpiry, buySig, buyDirectSaleId, 1, buyIsFiat, buyErc20);
 
         // 6. Verify complete transaction
         assertEq(wrappers.ownerOf(1), buyer); // NFT transferred
@@ -974,14 +1081,24 @@ contract CrutradeEcosystemTest is Test {
         vm.warp(sale.end + 1);
 
         vm.startPrank(operational);
-        bytes32 buyHash = keccak256(abi.encodePacked("buy_expired", block.timestamp));
-        bytes memory buySig = _signHash(buyHash, buyer);
+        uint256 expiredBuyNonce = _getCurrentNonce(buyer);
+        uint256 expiredBuyExpiry = _calculateExpiry(30);
+        uint256 expiredBuyDirectSaleId = 0;
+        bool expiredBuyIsFiat = false;
+        address expiredBuyErc20 = address(mockToken);
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = saleId;
+        bytes memory expiredBuySig = _generateBuySignature(
+            buyer,
+            sales.buy.selector,
+            expiredBuyNonce,
+            expiredBuyExpiry,
+            expiredBuyDirectSaleId,
+            saleId,
+            expiredBuyIsFiat
+        );
 
         vm.expectRevert();
-        sales.buy(buyer, buyHash, buySig, address(mockToken), saleIds);
+        sales.buy(buyer, expiredBuyNonce, expiredBuyExpiry, expiredBuySig, expiredBuyDirectSaleId, saleId, expiredBuyIsFiat, expiredBuyErc20);
 
         vm.stopPrank();
     }
@@ -990,14 +1107,24 @@ contract CrutradeEcosystemTest is Test {
         uint256 saleId = _setupAndListItem();
 
         vm.startPrank(operational);
-        bytes32 withdrawHash = keccak256(abi.encodePacked("withdraw_unauthorized", block.timestamp));
-        bytes memory withdrawSig = _signHash(withdrawHash, buyer); // Wrong signer
+        uint256 unauthorizedWithdrawNonce = _getCurrentNonce(buyer);
+        uint256 unauthorizedWithdrawExpiry = _calculateExpiry(30);
+        uint256 unauthorizedWithdrawDirectSaleId = 0;
+        bool unauthorizedWithdrawIsFiat = false;
+        address unauthorizedWithdrawErc20 = address(mockToken);
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = saleId;
+        bytes memory unauthorizedWithdrawSig = _generateWithdrawSignature(
+            buyer,
+            sales.withdraw.selector,
+            unauthorizedWithdrawNonce,
+            unauthorizedWithdrawExpiry,
+            unauthorizedWithdrawDirectSaleId,
+            saleId,
+            unauthorizedWithdrawIsFiat
+        );
 
         vm.expectRevert();
-        sales.withdraw(buyer, withdrawHash, withdrawSig, address(mockToken), saleIds);
+        sales.withdraw(buyer, unauthorizedWithdrawNonce, unauthorizedWithdrawExpiry, unauthorizedWithdrawSig, unauthorizedWithdrawDirectSaleId, saleId, unauthorizedWithdrawIsFiat, unauthorizedWithdrawErc20);
 
         vm.stopPrank();
     }
@@ -1007,14 +1134,26 @@ contract CrutradeEcosystemTest is Test {
 
         // Try to renew active sale (should only work on expired sales)
         vm.startPrank(operational);
-        bytes32 renewHash = keccak256(abi.encodePacked("renew_active", block.timestamp));
-        bytes memory renewSig = _signHash(renewHash, seller);
+        uint256 activeRenewNonce = _getCurrentNonce(seller);
+        uint256 activeRenewExpiry = _calculateExpiry(30);
+        uint256 activeRenewDirectSaleId = 0;
+        bool activeRenewIsFiat = false;
+        uint256 activeRenewExpireType = 0;
+        address activeRenewErc20 = address(mockToken);
 
-        uint256[] memory saleIds = new uint256[](1);
-        saleIds[0] = saleId;
+        bytes memory activeRenewSig = _generateRenewSignature(
+            seller,
+            sales.renew.selector,
+            activeRenewNonce,
+            activeRenewExpiry,
+            activeRenewDirectSaleId,
+            saleId,
+            activeRenewIsFiat,
+            activeRenewExpireType
+        );
 
         vm.expectRevert();
-        sales.renew(seller, renewHash, renewSig, address(mockToken), saleIds);
+        sales.renew(seller, activeRenewNonce, activeRenewExpiry, activeRenewSig, activeRenewDirectSaleId, saleId, activeRenewIsFiat, activeRenewExpireType, activeRenewErc20);
 
         vm.stopPrank();
     }
@@ -1066,18 +1205,39 @@ contract CrutradeEcosystemTest is Test {
         (uint256 wrapperId,) = _setupWrapperForSale();
 
         vm.startPrank(operational);
-        bytes32 listHash = keccak256(abi.encodePacked("zero_price", block.timestamp));
-        bytes memory listSig = _signHash(listHash, seller);
+        uint256 zeroPriceListNonce = _getCurrentNonce(seller);
+        uint256 zeroPriceListExpiry = _calculateExpiry(30);
+        uint256 zeroPriceListDirectSaleId = 1;
+        bool zeroPriceListIsFiat = false;
+        uint256 zeroPriceListPrice = 0; // Zero price
+        uint256 zeroPriceListExpireType = 0;
+        address zeroPriceListErc20 = address(mockToken);
 
-        SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
-        listInputs[0] = SalesBase.ListInputs({
-            price: 0, // Zero price
-            wrapperId: wrapperId,
-            durationId: 0
-        });
+        bytes memory zeroPriceListSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            zeroPriceListNonce,
+            zeroPriceListExpiry,
+            wrapperId,
+            zeroPriceListDirectSaleId,
+            zeroPriceListIsFiat,
+            zeroPriceListPrice,
+            zeroPriceListExpireType
+        );
 
         vm.expectRevert();
-        sales.list(seller, listHash, listSig, address(mockToken), listInputs);
+        sales.list(
+            seller,
+            zeroPriceListNonce,
+            zeroPriceListExpiry,
+            zeroPriceListSig,
+            wrapperId,
+            zeroPriceListDirectSaleId,
+            zeroPriceListIsFiat,
+            zeroPriceListPrice,
+            zeroPriceListExpireType,
+            zeroPriceListErc20
+        );
 
         vm.stopPrank();
     }
@@ -1193,6 +1353,575 @@ contract CrutradeEcosystemTest is Test {
         assertFalse(testContract.wasCalled(), "Function should not have been called");
     }
 
+    function test_RevertOnInvalidSignature() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List item with wrong signer (buyer instead of seller)
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        // Generate signature with wrong signer (buyer)
+        bytes memory wrongSig = _generateListSignature(
+            buyer, // Wrong signer
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            wrongSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnExpiredSignature() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List item with expired signature
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = block.timestamp - 1; // Expired
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory expiredSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            expiredSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnWrongNonce() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List item with wrong nonce
+        vm.startPrank(operational);
+        uint256 correctNonce = _getCurrentNonce(seller);
+        uint256 wrongNonce = correctNonce + 1; // Wrong nonce
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory wrongNonceSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            wrongNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            wrongNonce,
+            listExpiry,
+            wrongNonceSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_NonceIncrement() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Get initial nonce
+        uint256 initialNonce = _getCurrentNonce(seller);
+
+        // List item
+        vm.startPrank(operational);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            initialNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            initialNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify nonce was incremented
+        assertEq(_getCurrentNonce(seller), initialNonce + 1);
+
+        vm.stopPrank();
+    }
+
+    function test_FiatPaymentFlow() public {
+        // Setup prerequisites
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Mint fiat tokens to seller (this was missing)
+        vm.prank(admin);
+        fiatToken.mint(seller, 10000 * 10**18);
+
+        // Setup approvals for fiat token
+        vm.prank(seller);
+        fiatToken.approve(address(payments), type(uint256).max);
+        vm.prank(treasury);
+        fiatToken.approve(address(payments), type(uint256).max);
+
+        // List item with fiat payment
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = true; // Fiat payment
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(fiatToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify listing with fiat payment
+        ISales.Sale memory sale = sales.getSale(1);
+        assertEq(sale.price, 1000 * 10**18);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_ScheduleBasedListing() public {
+        // Setup schedule
+        vm.startPrank(admin);
+        uint256[] memory scheduleIds = new uint256[](1);
+        uint8[] memory daysOfWeek = new uint8[](1);
+        uint8[] memory hoursValue = new uint8[](1);
+        uint8[] memory minutesValue = new uint8[](1);
+
+        scheduleIds[0] = 1;
+        daysOfWeek[0] = 1; // Monday
+        hoursValue[0] = 10;
+        minutesValue[0] = 0;
+
+        sales.setSchedules(scheduleIds, daysOfWeek, hoursValue, minutesValue);
+        vm.stopPrank();
+
+        // Setup wrapper
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Try to list before schedule start time
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        // This should work if we're within the schedule window
+        // The actual schedule validation would be in the base contract
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify listing was created
+        ISales.Sale memory sale = sales.getSale(1);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_PauseUnpause() public {
+        // Pause the contract
+        vm.startPrank(admin);
+        sales.pause();
+        vm.stopPrank();
+
+        // Try to list while paused
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+
+        // Unpause and try again
+        vm.startPrank(admin);
+        sales.unpause();
+        vm.stopPrank();
+
+        // Should work now
+        vm.startPrank(operational);
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        ISales.Sale memory sale = sales.getSale(1);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_UnauthorizedPause() public {
+        // Try to pause with unauthorized account
+        address unauthorized = makeAddr("unauthorized");
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        sales.pause();
+        vm.stopPrank();
+
+        // Try to unpause with unauthorized account
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        sales.unpause();
+        vm.stopPrank();
+    }
+
+    function test_CollectionPagination() public {
+        // Setup multiple sales from same collection
+        (uint256 wrapperId1,) = _setupWrapperForSale();
+        _setupAndListItemWithId(wrapperId1);
+
+        // Create more wrappers from same collection
+        vm.startPrank(operational);
+        for (uint i = 2; i <= 5; i++) {
+            IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+            wrapperData[0] = IWrappers.WrapperData({
+                uri: string(abi.encodePacked("https://example.com/metadata/", i)),
+                metaKey: string(abi.encodePacked("item_00", i)),
+                amount: 0,
+                tokenId: i,
+                brandId: 0,
+                collection: keccak256("TEST_COLLECTION"),
+                active: false
+            });
+            wrappers.imports(seller, wrapperData);
+        }
+        vm.stopPrank();
+
+        // List all wrappers
+        for (uint i = 2; i <= 5; i++) {
+            _setupAndListItemWithId(i);
+        }
+
+        // Test pagination
+        (ISales.Sale[] memory pagedSales, uint256 total) = sales.getSalesByCollectionPaginated(
+            keccak256("TEST_COLLECTION"), 0, 2
+        );
+        assertEq(pagedSales.length, 2);
+        assertEq(total, 5);
+
+        // Test second page
+        (ISales.Sale[] memory secondPage, ) = sales.getSalesByCollectionPaginated(
+            keccak256("TEST_COLLECTION"), 2, 2
+        );
+        assertEq(secondPage.length, 2);
+
+        // Test third page
+        (ISales.Sale[] memory thirdPage, ) = sales.getSalesByCollectionPaginated(
+            keccak256("TEST_COLLECTION"), 4, 2
+        );
+        assertEq(thirdPage.length, 1);
+    }
+
+    function test_DirectSaleIdValidation() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List with different directSaleId values
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 999; // High directSaleId
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify listing was created with correct directSaleId
+        ISales.Sale memory sale = sales.getSale(1);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_ComplexFeeScenarios() public {
+        // Setup multiple membership tiers with different fees
+        vm.startPrank(admin);
+        payments.setMembershipFees(1, 500, 300); // 5% seller, 3% buyer
+        payments.setMembershipFees(2, 200, 100); // 2% seller, 1% buyer
+        payments.setMembershipFees(3, 1000, 800); // 10% seller, 8% buyer
+        vm.stopPrank();
+
+        // Assign different memberships
+        vm.startPrank(operational);
+        address[] memory sellerMember = new address[](1);
+        sellerMember[0] = seller;
+        memberships.setMemberships(sellerMember, 1); // Tier 1
+
+        address[] memory buyerMember = new address[](1);
+        buyerMember[0] = buyer;
+        memberships.setMemberships(buyerMember, 2); // Tier 2
+        vm.stopPrank();
+
+        // Setup and list item
+        uint256 saleId = _setupAndListItem();
+
+        // Make sure buyer is whitelisted (this was missing)
+        vm.startPrank(operational);
+        address[] memory buyerArray = new address[](1);
+        buyerArray[0] = buyer;
+        whitelist.addToWhitelist(buyerArray);
+        vm.stopPrank();
+
+        // Setup buyer approvals
+        vm.prank(buyer);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Fast forward to sale start time
+        ISales.Sale memory sale = sales.getSale(saleId);
+        if (block.timestamp < sale.start) {
+            vm.warp(sale.start + 1);
+        }
+
+        // Record balances before purchase
+        uint256 buyerBalanceBefore = mockToken.balanceOf(buyer);
+        uint256 sellerBalanceBefore = mockToken.balanceOf(seller);
+
+        // Buy item
+        vm.startPrank(operational);
+        uint256 buyNonce = _getCurrentNonce(buyer);
+        uint256 buyExpiry = _calculateExpiry(30);
+        uint256 buyDirectSaleId = 0;
+        bool buyIsFiat = false;
+        address buyErc20 = address(mockToken);
+
+        bytes memory buySig = _generateBuySignature(
+            buyer,
+            sales.buy.selector,
+            buyNonce,
+            buyExpiry,
+            buyDirectSaleId,
+            saleId,
+            buyIsFiat
+        );
+
+        sales.buy(buyer, buyNonce, buyExpiry, buySig, buyDirectSaleId, saleId, buyIsFiat, buyErc20);
+
+        // Verify fee distribution occurred
+        assertTrue(mockToken.balanceOf(buyer) < buyerBalanceBefore);
+        assertTrue(mockToken.balanceOf(seller) > sellerBalanceBefore);
+
+        vm.stopPrank();
+    }
+
     // === UTILITY FUNCTIONS ===
 
     function _setupWrapperForSale() internal returns (uint256 wrapperId, uint256 brandId) {
@@ -1239,17 +1968,38 @@ contract CrutradeEcosystemTest is Test {
 
         // List item
         vm.startPrank(operational);
-        bytes32 listHash = keccak256(abi.encodePacked("list", block.timestamp, wrapperId));
-        bytes memory listSig = _signHash(listHash, seller);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
 
-        SalesBase.ListInputs[] memory listInputs = new SalesBase.ListInputs[](1);
-        listInputs[0] = SalesBase.ListInputs({
-            price: 1000 * 10**18,
-            wrapperId: wrapperId,
-            durationId: 0
-        });
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
 
-        sales.list(seller, listHash, listSig, address(mockToken), listInputs);
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
 
         vm.stopPrank();
 
@@ -1278,6 +2028,341 @@ contract CrutradeEcosystemTest is Test {
         address[] memory array = new address[](1);
         array[0] = addr;
         return array;
+    }
+
+    // Helper function to generate EIP-712 signatures for testing
+    function _generateEIP712Signature(
+        address signer,
+        bytes4 functionSelector,
+        uint256 nonce,
+        uint256 expiry
+    ) internal view returns (bytes memory) {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+
+        bytes32 messageHash = keccak256(abi.encode(
+            keccak256("CrutradeMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry)"),
+            functionSelector,
+            nonce,
+            expiry
+        ));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, messageHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_getPrivateKey(signer), digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // Helper function to generate EIP-712 signatures for list operations
+    function _generateListSignature(
+        address signer,
+        bytes4 functionSelector,
+        uint256 nonce,
+        uint256 expiry,
+        uint256 wrapperId,
+        uint256 directSaleId,
+        bool isFiat,
+        uint256 price,
+        uint256 expireType
+    ) internal view returns (bytes memory) {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("CrutradeListMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 wrapperId,uint256 directSaleId,bool isFiat,uint256 price,uint256 expireType)"),
+            functionSelector,
+            nonce,
+            expiry,
+            wrapperId,
+            directSaleId,
+            isFiat,
+            price,
+            expireType
+        ));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_getPrivateKey(signer), digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // Helper function to generate EIP-712 signatures for buy operations
+    function _generateBuySignature(
+        address signer,
+        bytes4 functionSelector,
+        uint256 nonce,
+        uint256 expiry,
+        uint256 directSaleId,
+        uint256 saleId,
+        bool isFiat
+    ) internal view returns (bytes memory) {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("CrutradeBuyMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 directSaleId,uint256 saleId,bool isFiat)"),
+            functionSelector,
+            nonce,
+            expiry,
+            directSaleId,
+            saleId,
+            isFiat
+        ));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_getPrivateKey(signer), digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // Helper function to generate EIP-712 signatures for withdraw operations
+    function _generateWithdrawSignature(
+        address signer,
+        bytes4 functionSelector,
+        uint256 nonce,
+        uint256 expiry,
+        uint256 directSaleId,
+        uint256 saleId,
+        bool isFiat
+    ) internal view returns (bytes memory) {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("CrutradeWithdrawMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 directSaleId,uint256 saleId,bool isFiat)"),
+            functionSelector,
+            nonce,
+            expiry,
+            directSaleId,
+            saleId,
+            isFiat
+        ));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_getPrivateKey(signer), digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // Helper function to generate EIP-712 signatures for renew operations
+    function _generateRenewSignature(
+        address signer,
+        bytes4 functionSelector,
+        uint256 nonce,
+        uint256 expiry,
+        uint256 directSaleId,
+        uint256 saleId,
+        bool isFiat,
+        uint256 expireType
+    ) internal view returns (bytes memory) {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("CrutradeRenewMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 directSaleId,uint256 saleId,bool isFiat,uint256 expireType)"),
+            functionSelector,
+            nonce,
+            expiry,
+            directSaleId,
+            saleId,
+            isFiat,
+            expireType
+        ));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_getPrivateKey(signer), digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // Helper function to get current nonce
+    function _getCurrentNonce(address user) internal view returns (uint256) {
+        return sales.getNonce(user);
+    }
+
+    // Helper function to calculate expiry
+    function _calculateExpiry(uint256 validityMinutes) internal view returns (uint256) {
+        return block.timestamp + (validityMinutes * 60);
+    }
+
+    // === MISSING FUNCTION TESTS ===
+
+    function test_GetNonceFunction() public {
+        // Test initial nonce
+        assertEq(sales.getNonce(seller), 0);
+        assertEq(sales.getNonce(buyer), 0);
+
+        // Setup and list item to increment nonce
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        vm.startPrank(operational);
+        uint256 listNonce = sales.getNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify nonce was incremented
+        assertEq(sales.getNonce(seller), 1);
+        assertEq(sales.getNonce(buyer), 0); // Buyer nonce unchanged
+
+        vm.stopPrank();
+    }
+
+    function test_GetDomainSeparator() public {
+        bytes32 domainSeparator = sales.getDomainSeparator();
+        assertTrue(domainSeparator != bytes32(0), "Domain separator should not be zero");
+
+        // Verify it's consistent across calls
+        assertEq(sales.getDomainSeparator(), domainSeparator);
+    }
+
+    function test_GetSalesBySellerPaginated() public {
+        // Setup multiple sales for the same seller
+        uint256 saleId1 = _setupAndListItem();
+
+        // Create another wrapper and list it
+        vm.startPrank(operational);
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "https://example.com/metadata/2",
+            metaKey: "item_002",
+            amount: 0,
+            tokenId: 2,
+            brandId: 0,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+        wrappers.imports(seller, wrapperData);
+        vm.stopPrank();
+
+        _setupAndListItemWithId(2); // This creates sale ID 2
+
+        // Test pagination
+        (uint256[] memory saleIds, uint256 total) = sales.getSalesBySellerPaginated(seller, 0, 1);
+        assertEq(saleIds.length, 1);
+        assertEq(total, 2);
+
+        // Test second page
+        (uint256[] memory secondPage, ) = sales.getSalesBySellerPaginated(seller, 1, 1);
+        assertEq(secondPage.length, 1);
+
+        // Test empty page
+        (uint256[] memory emptyPage, ) = sales.getSalesBySellerPaginated(seller, 10, 1);
+        assertEq(emptyPage.length, 0);
+    }
+
+    function test_GetAllDurationsPaginated() public {
+        // Test initial durations (set up in setUp)
+        (uint256[] memory durationIds, uint256[] memory durationValues, uint256 total) = sales.getAllDurationsPaginated(0, 10);
+        assertEq(total, 3); // 3 durations set up in setUp
+        assertEq(durationIds.length, 3);
+        assertEq(durationValues.length, 3);
+
+        // Test pagination
+        (durationIds, durationValues, total) = sales.getAllDurationsPaginated(0, 2);
+        assertEq(durationIds.length, 2);
+        assertEq(durationValues.length, 2);
+        assertEq(total, 3);
+
+        // Test second page
+        (durationIds, durationValues, ) = sales.getAllDurationsPaginated(2, 2);
+        assertEq(durationIds.length, 1);
+        assertEq(durationValues.length, 1);
+    }
+
+    function test_GetActiveSchedules() public {
+        // Set up some schedules
+        vm.startPrank(admin);
+        uint256[] memory scheduleIds = new uint256[](2);
+        uint8[] memory daysOfWeek = new uint8[](2);
+        uint8[] memory hoursValue = new uint8[](2);
+        uint8[] memory minutesValue = new uint8[](2);
+
+        scheduleIds[0] = 1;
+        scheduleIds[1] = 2;
+        daysOfWeek[0] = 1; // Monday
+        daysOfWeek[1] = 5; // Friday
+        hoursValue[0] = 10;
+        hoursValue[1] = 15;
+        minutesValue[0] = 30;
+        minutesValue[1] = 0;
+
+        sales.setSchedules(scheduleIds, daysOfWeek, hoursValue, minutesValue);
+        vm.stopPrank();
+
+        // Get active schedules
+        (uint256[] memory activeScheduleIds, uint8[] memory dayWeeks, uint8[] memory hourValues, uint8[] memory minuteValues) = sales.getActiveSchedules();
+
+        assertEq(activeScheduleIds.length, 2);
+        assertEq(dayWeeks.length, 2);
+        assertEq(hourValues.length, 2);
+        assertEq(minuteValues.length, 2);
+
+        // Verify the schedules match what we set
+        assertEq(activeScheduleIds[0], 1);
+        assertEq(dayWeeks[0], 1);
+        assertEq(hourValues[0], 10);
+        assertEq(minuteValues[0], 30);
+
+        assertEq(activeScheduleIds[1], 2);
+        assertEq(dayWeeks[1], 5);
+        assertEq(hourValues[1], 15);
+        assertEq(minuteValues[1], 0);
+    }
+
+    function test_SetAndGetListingDelay() public {
+        // Test initial listing delay
+        uint256 initialDelay = sales.getListingDelay();
+        assertTrue(initialDelay > 0, "Initial listing delay should be set");
+
+        // Set new listing delay
+        vm.startPrank(admin);
+        uint256 newDelay = 3600; // 1 hour
+        sales.setListingDelay(newDelay);
+        vm.stopPrank();
+
+        // Verify the delay was updated
+        assertEq(sales.getListingDelay(), newDelay);
+
+        // Test setting zero delay (should work)
+        vm.startPrank(admin);
+        sales.setListingDelay(0);
+        vm.stopPrank();
+        assertEq(sales.getListingDelay(), 0);
+    }
+
+    function test_UnauthorizedSetListingDelay() public {
+        // Try to set listing delay with unauthorized account
+        address unauthorized = makeAddr("unauthorized");
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        sales.setListingDelay(3600);
+        vm.stopPrank();
     }
 
 }

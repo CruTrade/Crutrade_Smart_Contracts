@@ -65,7 +65,7 @@ abstract contract MembershipsBase is
     function __MembershipsBase_init(address _roles) internal onlyInitializing {
         __Pausable_init();
         __UUPSUpgradeable_init();
-        __ModifiersBase_init(_roles);
+        __ModifiersBase_init(_roles, MEMBERSHIPS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
     }
 
     /* MEMBERSHIP MANAGEMENT */

@@ -46,6 +46,54 @@ abstract contract ModifiersBase is Initializable {
   /// @notice Fiat role identifier
   bytes32 internal constant FIAT = keccak256('FIAT');
 
+  /* DOMAIN CONSTANTS */
+
+  /// @notice Default domain name for contracts that don't need signature validation
+  string internal constant DEFAULT_DOMAIN_NAME = "Crutrade";
+
+  /// @notice Default domain version
+  string internal constant DEFAULT_DOMAIN_VERSION = "1";
+
+  /// @notice Sales contract domain name
+  string internal constant SALES_DOMAIN_NAME = "Crutrade Sales";
+
+  /// @notice Payments contract domain name
+  string internal constant PAYMENTS_DOMAIN_NAME = "Crutrade Payments";
+
+  /// @notice Brands contract domain name
+  string internal constant BRANDS_DOMAIN_NAME = "Crutrade Brands";
+
+  /// @notice Wrappers contract domain name
+  string internal constant WRAPPERS_DOMAIN_NAME = "Crutrade Wrappers";
+
+  /// @notice Whitelist contract domain name
+  string internal constant WHITELIST_DOMAIN_NAME = "Crutrade Whitelist";
+
+  /// @notice Memberships contract domain name
+  string internal constant MEMBERSHIPS_DOMAIN_NAME = "Crutrade Memberships";
+
+  /* EIP-712 TYPEHASHES */
+
+  /// @notice Typehash for list messages
+  bytes32 internal constant LIST_TYPEHASH = keccak256(
+    "CrutradeListMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 wrapperId,uint256 directSaleId,bool isFiat,uint256 price,uint256 expireType)"
+  );
+
+  /// @notice Typehash for buy messages
+  bytes32 internal constant BUY_TYPEHASH = keccak256(
+    "CrutradeBuyMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 directSaleId,uint256 saleId,bool isFiat)"
+  );
+
+  /// @notice Typehash for withdraw messages
+  bytes32 internal constant WITHDRAW_TYPEHASH = keccak256(
+    "CrutradeWithdrawMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 directSaleId,uint256 saleId,bool isFiat)"
+  );
+
+  /// @notice Typehash for renew messages
+  bytes32 internal constant RENEW_TYPEHASH = keccak256(
+    "CrutradeRenewMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,uint256 directSaleId,uint256 saleId,bool isFiat,uint256 expireType)"
+  );
+
   /* STORAGE */
 
   /// @dev Interface to the roles contract
@@ -54,6 +102,12 @@ abstract contract ModifiersBase is Initializable {
   /// @dev Used hash tracking to prevent replay attacks
   mapping(bytes32 => bool) private _usedHashes;
 
+  /// @dev Nonce tracking per user to prevent replay attacks
+  mapping(address => uint256) private _nonces;
+
+  /// @dev EIP-712 domain separator
+  bytes32 private _domainSeparator;
+
   /* EVENTS */
 
   /**
@@ -61,6 +115,13 @@ abstract contract ModifiersBase is Initializable {
    * @param roles New roles contract address
    */
   event RolesSet(address indexed roles);
+
+  /**
+   * @dev Event emitted when a nonce is used
+   * @param user Address of the user
+   * @param nonce Nonce that was used
+   */
+  event NonceUsed(address indexed user, uint256 nonce);
 
   /* ERRORS */
 
@@ -91,32 +152,363 @@ abstract contract ModifiersBase is Initializable {
   /// @dev Thrown when address validation fails
   error ZeroAddress();
 
+  /// @dev Thrown when nonce is invalid
+  error InvalidNonce(uint256 expected, uint256 provided);
+
+  /// @dev Thrown when signature has expired
+  error SignatureExpired(uint256 expiry, uint256 current);
+
   /**
    * @dev Initializes the Modifiers contract
    * @param _roles Address of the Roles contract
+   * @param domainName Domain name for EIP-712 (e.g., "Crutrade Sales", "Crutrade Payments")
+   * @param domainVersion Domain version for EIP-712
    */
-  function __ModifiersBase_init(address _roles) internal onlyInitializing {
+  function __ModifiersBase_init(address _roles, string memory domainName, string memory domainVersion) internal onlyInitializing {
     if (_roles == address(0)) revert ZeroAddress();
     roles = IRoles(_roles);
+
+    // Initialize EIP-712 domain separator with contract-specific name and version
+    _domainSeparator = keccak256(abi.encode(
+      keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+      keccak256(bytes(domainName)),
+      keccak256(bytes(domainVersion)),
+      block.chainid,
+      address(this)
+    ));
   }
 
   /**
-   * @dev Modifier to verify the signature of a message
+   * @dev Modifier to verify the signature of a message with EIP-712 domain separation
    * @param wallet Address of the signer
-   * @param hash Hash of the message
+   * @param functionSelector Function selector to prevent cross-function replay
+   * @param nonce Nonce to prevent replay attacks
+   * @param expiry Timestamp when signature expires
+   * @param dataHash Hash of the transaction data to prevent parameter manipulation
    * @param signature Signature to verify
    */
-  modifier checkSignature(
+  modifier checkSignatureEIP712(
     address wallet,
-    bytes32 hash,
+    bytes4 functionSelector,
+    uint256 nonce,
+    uint256 expiry,
+    bytes32 dataHash,
     bytes calldata signature
   ) {
-    // Check if hash has been used before
-    if (_usedHashes[hash]) revert HashAlreadyUsed(hash);
+    // Check if signature has expired
+    if (block.timestamp > expiry) revert SignatureExpired(expiry, block.timestamp);
+
+    // Check if nonce is valid
+    uint256 expectedNonce = _nonces[wallet];
+    if (nonce != expectedNonce) revert InvalidNonce(expectedNonce, nonce);
+
+    // Create the message hash with EIP-712 domain separation
+    bytes32 messageHash = keccak256(abi.encodePacked(
+      "\x19\x01",
+      _domainSeparator,
+      keccak256(abi.encode(
+        keccak256("CrutradeMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,bytes32 dataHash)"),
+        functionSelector,
+        nonce,
+        expiry,
+        dataHash
+      ))
+    ));
+
+    // Recover signer address from signature
+    address recoveredSigner = ECDSA.recover(messageHash, signature);
+
+    // Verify signature matches expected signer
+    if (recoveredSigner != wallet) revert InvalidSignature(wallet, recoveredSigner);
+
+    // Increment nonce to prevent replay
+    _nonces[wallet]++;
+
+    emit NonceUsed(wallet, nonce);
+    _;
+  }
+
+  /**
+   * @dev Modifier to verify signatures for list operations with direct parameter validation
+   * @param wallet Address of the signer
+   * @param functionSelector Function selector
+   * @param nonce Nonce to prevent replay attacks
+   * @param expiry Timestamp when signature expires
+   * @param wrapperId ID of the wrapped NFT
+   * @param directSaleId Direct sale ID
+   * @param isFiat Whether this is a fiat payment
+   * @param price Sale price
+   * @param expireType Duration type for the sale
+   * @param signature Signature to verify
+   */
+  modifier checkListSignature(
+    address wallet,
+    bytes4 functionSelector,
+    uint256 nonce,
+    uint256 expiry,
+    uint256 wrapperId,
+    uint256 directSaleId,
+    bool isFiat,
+    uint256 price,
+    uint256 expireType,
+    bytes calldata signature
+  ) {
+    // Check if signature has expired
+    if (block.timestamp > expiry) revert SignatureExpired(expiry, block.timestamp);
+
+    // Check if nonce is valid
+    uint256 expectedNonce = _nonces[wallet];
+    if (nonce != expectedNonce) revert InvalidNonce(expectedNonce, nonce);
+
+    // Create the struct hash
+    bytes32 structHash = keccak256(abi.encode(
+      LIST_TYPEHASH,
+      functionSelector,
+      nonce,
+      expiry,
+      wrapperId,
+      directSaleId,
+      isFiat,
+      price,
+      expireType
+    ));
+
+    // Create the message hash with EIP-712 domain separation
+    bytes32 messageHash = keccak256(abi.encodePacked(
+      "\x19\x01",
+      _domainSeparator,
+      structHash
+    ));
+
+    // Recover signer address from signature
+    address recoveredSigner = ECDSA.recover(messageHash, signature);
+
+    // Verify signature matches expected signer
+    if (recoveredSigner != wallet) revert InvalidSignature(wallet, recoveredSigner);
+
+    // Increment nonce to prevent replay
+    _nonces[wallet]++;
+
+    emit NonceUsed(wallet, nonce);
+    _;
+  }
+
+  /**
+   * @dev Modifier to verify signatures for buy operations with direct parameter validation
+   * @param wallet Address of the signer
+   * @param functionSelector Function selector
+   * @param nonce Nonce to prevent replay attacks
+   * @param expiry Timestamp when signature expires
+   * @param directSaleId Direct sale ID
+   * @param saleId Sale ID to buy
+   * @param isFiat Whether this is a fiat payment
+   * @param signature Signature to verify
+   */
+  modifier checkBuySignature(
+    address wallet,
+    bytes4 functionSelector,
+    uint256 nonce,
+    uint256 expiry,
+    uint256 directSaleId,
+    uint256 saleId,
+    bool isFiat,
+    bytes calldata signature
+  ) {
+    // Check if signature has expired
+    if (block.timestamp > expiry) revert SignatureExpired(expiry, block.timestamp);
+
+    // Check if nonce is valid
+    uint256 expectedNonce = _nonces[wallet];
+    if (nonce != expectedNonce) revert InvalidNonce(expectedNonce, nonce);
+
+    // Create the struct hash
+    bytes32 structHash = keccak256(abi.encode(
+      BUY_TYPEHASH,
+      functionSelector,
+      nonce,
+      expiry,
+      directSaleId,
+      saleId,
+      isFiat
+    ));
+
+    // Create the message hash with EIP-712 domain separation
+    bytes32 messageHash = keccak256(abi.encodePacked(
+      "\x19\x01",
+      _domainSeparator,
+      structHash
+    ));
+
+    // Recover signer address from signature
+    address recoveredSigner = ECDSA.recover(messageHash, signature);
+
+    // Verify signature matches expected signer
+    if (recoveredSigner != wallet) revert InvalidSignature(wallet, recoveredSigner);
+
+    // Increment nonce to prevent replay
+    _nonces[wallet]++;
+
+    emit NonceUsed(wallet, nonce);
+    _;
+  }
+
+  /**
+   * @dev Modifier to verify signatures for withdraw operations with direct parameter validation
+   * @param wallet Address of the signer
+   * @param functionSelector Function selector
+   * @param nonce Nonce to prevent replay attacks
+   * @param expiry Timestamp when signature expires
+   * @param directSaleId Direct sale ID
+   * @param saleId Sale ID to withdraw
+   * @param isFiat Whether this is a fiat payment
+   * @param signature Signature to verify
+   */
+  modifier checkWithdrawSignature(
+    address wallet,
+    bytes4 functionSelector,
+    uint256 nonce,
+    uint256 expiry,
+    uint256 directSaleId,
+    uint256 saleId,
+    bool isFiat,
+    bytes calldata signature
+  ) {
+    // Check if signature has expired
+    if (block.timestamp > expiry) revert SignatureExpired(expiry, block.timestamp);
+
+    // Check if nonce is valid
+    uint256 expectedNonce = _nonces[wallet];
+    if (nonce != expectedNonce) revert InvalidNonce(expectedNonce, nonce);
+
+    // Create the struct hash
+    bytes32 structHash = keccak256(abi.encode(
+      WITHDRAW_TYPEHASH,
+      functionSelector,
+      nonce,
+      expiry,
+      directSaleId,
+      saleId,
+      isFiat
+    ));
+
+    // Create the message hash with EIP-712 domain separation
+    bytes32 messageHash = keccak256(abi.encodePacked(
+      "\x19\x01",
+      _domainSeparator,
+      structHash
+    ));
+
+    // Recover signer address from signature
+    address recoveredSigner = ECDSA.recover(messageHash, signature);
+
+    // Verify signature matches expected signer
+    if (recoveredSigner != wallet) revert InvalidSignature(wallet, recoveredSigner);
+
+    // Increment nonce to prevent replay
+    _nonces[wallet]++;
+
+    emit NonceUsed(wallet, nonce);
+    _;
+  }
+
+  /**
+   * @dev Modifier to verify signatures for renew operations with direct parameter validation
+   * @param wallet Address of the signer
+   * @param functionSelector Function selector
+   * @param nonce Nonce to prevent replay attacks
+   * @param expiry Timestamp when signature expires
+   * @param directSaleId Direct sale ID
+   * @param saleId Sale ID to renew
+   * @param isFiat Whether this is a fiat payment
+   * @param expireType New duration type for the renewal
+   * @param signature Signature to verify
+   */
+  modifier checkRenewSignature(
+    address wallet,
+    bytes4 functionSelector,
+    uint256 nonce,
+    uint256 expiry,
+    uint256 directSaleId,
+    uint256 saleId,
+    bool isFiat,
+    uint256 expireType,
+    bytes calldata signature
+  ) {
+    // Check if signature has expired
+    if (block.timestamp > expiry) revert SignatureExpired(expiry, block.timestamp);
+
+    // Check if nonce is valid
+    uint256 expectedNonce = _nonces[wallet];
+    if (nonce != expectedNonce) revert InvalidNonce(expectedNonce, nonce);
+
+    // Create the struct hash
+    bytes32 structHash = keccak256(abi.encode(
+      RENEW_TYPEHASH,
+      functionSelector,
+      nonce,
+      expiry,
+      directSaleId,
+      saleId,
+      isFiat,
+      expireType
+    ));
+
+    // Create the message hash with EIP-712 domain separation
+    bytes32 messageHash = keccak256(abi.encodePacked(
+      "\x19\x01",
+      _domainSeparator,
+      structHash
+    ));
+
+    // Recover signer address from signature
+    address recoveredSigner = ECDSA.recover(messageHash, signature);
+
+    // Verify signature matches expected signer
+    if (recoveredSigner != wallet) revert InvalidSignature(wallet, recoveredSigner);
+
+    // Increment nonce to prevent replay
+    _nonces[wallet]++;
+
+    emit NonceUsed(wallet, nonce);
+    _;
+  }
+
+
+
+  /**
+   * @dev Modifier to verify frontend-style signatures (for backward compatibility)
+   * @param wallet Address of the signer
+   * @param contractAddress Contract address that should be in the signature
+   * @param functionName Function name that should be in the signature
+   * @param parameters Parameters that should be in the signature
+   * @param timestamp Timestamp that should be in the signature
+   * @param signature Signature to verify
+   */
+  modifier checkFrontendSignature(
+    address wallet,
+    address contractAddress,
+    string memory functionName,
+    string memory parameters,
+    uint256 timestamp,
+    bytes calldata signature
+  ) {
+    // Create the message that frontend signs
+    bytes32 messageHash = keccak256(abi.encodePacked(
+      "contract:", contractAddress,
+      "function:", functionName,
+      "parameters:", parameters,
+      "timestamp:", timestamp
+    ));
+
+    // Check if this message has been used before
+    if (_usedHashes[messageHash]) revert HashAlreadyUsed(messageHash);
+
+    // Check if timestamp is not too old (e.g., 30 minutes)
+    if (block.timestamp > timestamp + 30 minutes) revert SignatureExpired(timestamp, block.timestamp);
 
     // Recover signer address from signature
     address recoveredSigner = ECDSA.recover(
-      MessageHashUtils.toEthSignedMessageHash(hash),
+      MessageHashUtils.toEthSignedMessageHash(messageHash),
       signature
     );
 
@@ -125,7 +517,7 @@ abstract contract ModifiersBase is Initializable {
       revert InvalidSignature(wallet, recoveredSigner);
 
     // Mark hash as used to prevent replay
-    _usedHashes[hash] = true;
+    _usedHashes[messageHash] = true;
     _;
   }
 
@@ -145,7 +537,7 @@ abstract contract ModifiersBase is Initializable {
    */
   modifier onlyDelegatedRole() {
     address sender = msg.sender;
-    if (!(roles.hasDelegateRole(sender) && sender.code.length > 0))
+    if (!roles.hasDelegateRole(sender))
       revert NotAllowedDelegate(sender);
     _;
   }
@@ -200,5 +592,24 @@ abstract contract ModifiersBase is Initializable {
     );
     if (actualOwner != wallet) revert NotOwner(wallet, actualOwner);
     _;
+  }
+
+  /* VIEW FUNCTIONS */
+
+  /**
+   * @dev Gets the current nonce for a user
+   * @param user Address of the user
+   * @return Current nonce
+   */
+  function getNonce(address user) external view returns (uint256) {
+    return _nonces[user];
+  }
+
+  /**
+   * @dev Gets the EIP-712 domain separator
+   * @return Domain separator
+   */
+  function getDomainSeparator() external view returns (bytes32) {
+    return _domainSeparator;
   }
 }
