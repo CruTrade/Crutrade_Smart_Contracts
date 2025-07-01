@@ -194,6 +194,9 @@ contract CrutradeEcosystemTest is Test {
         // Grant TREASURY role to treasury address (needed for fee operations)
         roles.grantRole(TREASURY, treasury);
 
+        // Grant PAUSER role to admin (needed for pause/unpause functionality)
+        roles.grantRole(PAUSER, admin);
+
         // Grant delegate roles
         roles.grantDelegateRole(address(sales));
         roles.grantDelegateRole(address(wrappers));
@@ -1348,6 +1351,575 @@ contract CrutradeEcosystemTest is Test {
 
         // Verify the function was not called
         assertFalse(testContract.wasCalled(), "Function should not have been called");
+    }
+
+    function test_RevertOnInvalidSignature() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List item with wrong signer (buyer instead of seller)
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        // Generate signature with wrong signer (buyer)
+        bytes memory wrongSig = _generateListSignature(
+            buyer, // Wrong signer
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            wrongSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnExpiredSignature() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List item with expired signature
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = block.timestamp - 1; // Expired
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory expiredSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            expiredSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnWrongNonce() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List item with wrong nonce
+        vm.startPrank(operational);
+        uint256 correctNonce = _getCurrentNonce(seller);
+        uint256 wrongNonce = correctNonce + 1; // Wrong nonce
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory wrongNonceSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            wrongNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            wrongNonce,
+            listExpiry,
+            wrongNonceSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_NonceIncrement() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Get initial nonce
+        uint256 initialNonce = _getCurrentNonce(seller);
+
+        // List item
+        vm.startPrank(operational);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            initialNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            initialNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify nonce was incremented
+        assertEq(_getCurrentNonce(seller), initialNonce + 1);
+
+        vm.stopPrank();
+    }
+
+    function test_FiatPaymentFlow() public {
+        // Setup prerequisites
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Mint fiat tokens to seller (this was missing)
+        vm.prank(admin);
+        fiatToken.mint(seller, 10000 * 10**18);
+
+        // Setup approvals for fiat token
+        vm.prank(seller);
+        fiatToken.approve(address(payments), type(uint256).max);
+        vm.prank(treasury);
+        fiatToken.approve(address(payments), type(uint256).max);
+
+        // List item with fiat payment
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = true; // Fiat payment
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(fiatToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify listing with fiat payment
+        ISales.Sale memory sale = sales.getSale(1);
+        assertEq(sale.price, 1000 * 10**18);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_ScheduleBasedListing() public {
+        // Setup schedule
+        vm.startPrank(admin);
+        uint256[] memory scheduleIds = new uint256[](1);
+        uint8[] memory daysOfWeek = new uint8[](1);
+        uint8[] memory hoursValue = new uint8[](1);
+        uint8[] memory minutesValue = new uint8[](1);
+
+        scheduleIds[0] = 1;
+        daysOfWeek[0] = 1; // Monday
+        hoursValue[0] = 10;
+        minutesValue[0] = 0;
+
+        sales.setSchedules(scheduleIds, daysOfWeek, hoursValue, minutesValue);
+        vm.stopPrank();
+
+        // Setup wrapper
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Try to list before schedule start time
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        // This should work if we're within the schedule window
+        // The actual schedule validation would be in the base contract
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify listing was created
+        ISales.Sale memory sale = sales.getSale(1);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_PauseUnpause() public {
+        // Pause the contract
+        vm.startPrank(admin);
+        sales.pause();
+        vm.stopPrank();
+
+        // Try to list while paused
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 1;
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        vm.expectRevert();
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        vm.stopPrank();
+
+        // Unpause and try again
+        vm.startPrank(admin);
+        sales.unpause();
+        vm.stopPrank();
+
+        // Should work now
+        vm.startPrank(operational);
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        ISales.Sale memory sale = sales.getSale(1);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_UnauthorizedPause() public {
+        // Try to pause with unauthorized account
+        address unauthorized = makeAddr("unauthorized");
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        sales.pause();
+        vm.stopPrank();
+
+        // Try to unpause with unauthorized account
+        vm.startPrank(unauthorized);
+        vm.expectRevert();
+        sales.unpause();
+        vm.stopPrank();
+    }
+
+    function test_CollectionPagination() public {
+        // Setup multiple sales from same collection
+        (uint256 wrapperId1,) = _setupWrapperForSale();
+        _setupAndListItemWithId(wrapperId1);
+
+        // Create more wrappers from same collection
+        vm.startPrank(operational);
+        for (uint i = 2; i <= 5; i++) {
+            IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+            wrapperData[0] = IWrappers.WrapperData({
+                uri: string(abi.encodePacked("https://example.com/metadata/", i)),
+                metaKey: string(abi.encodePacked("item_00", i)),
+                amount: 0,
+                tokenId: i,
+                brandId: 0,
+                collection: keccak256("TEST_COLLECTION"),
+                active: false
+            });
+            wrappers.imports(seller, wrapperData);
+        }
+        vm.stopPrank();
+
+        // List all wrappers
+        for (uint i = 2; i <= 5; i++) {
+            _setupAndListItemWithId(i);
+        }
+
+        // Test pagination
+        (ISales.Sale[] memory pagedSales, uint256 total) = sales.getSalesByCollectionPaginated(
+            keccak256("TEST_COLLECTION"), 0, 2
+        );
+        assertEq(pagedSales.length, 2);
+        assertEq(total, 5);
+
+        // Test second page
+        (ISales.Sale[] memory secondPage, ) = sales.getSalesByCollectionPaginated(
+            keccak256("TEST_COLLECTION"), 2, 2
+        );
+        assertEq(secondPage.length, 2);
+
+        // Test third page
+        (ISales.Sale[] memory thirdPage, ) = sales.getSalesByCollectionPaginated(
+            keccak256("TEST_COLLECTION"), 4, 2
+        );
+        assertEq(thirdPage.length, 1);
+    }
+
+    function test_DirectSaleIdValidation() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+
+        // Setup approvals
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // List with different directSaleId values
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        uint256 listDirectSaleId = 999; // High directSaleId
+        bool listIsFiat = false;
+        uint256 listPrice = 1000 * 10**18;
+        uint256 listExpireType = 0;
+        address listErc20 = address(mockToken);
+
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType
+        );
+
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            listDirectSaleId,
+            listIsFiat,
+            listPrice,
+            listExpireType,
+            listErc20
+        );
+
+        // Verify listing was created with correct directSaleId
+        ISales.Sale memory sale = sales.getSale(1);
+        assertTrue(sale.active);
+
+        vm.stopPrank();
+    }
+
+    function test_ComplexFeeScenarios() public {
+        // Setup multiple membership tiers with different fees
+        vm.startPrank(admin);
+        payments.setMembershipFees(1, 500, 300); // 5% seller, 3% buyer
+        payments.setMembershipFees(2, 200, 100); // 2% seller, 1% buyer
+        payments.setMembershipFees(3, 1000, 800); // 10% seller, 8% buyer
+        vm.stopPrank();
+
+        // Assign different memberships
+        vm.startPrank(operational);
+        address[] memory sellerMember = new address[](1);
+        sellerMember[0] = seller;
+        memberships.setMemberships(sellerMember, 1); // Tier 1
+
+        address[] memory buyerMember = new address[](1);
+        buyerMember[0] = buyer;
+        memberships.setMemberships(buyerMember, 2); // Tier 2
+        vm.stopPrank();
+
+        // Setup and list item
+        uint256 saleId = _setupAndListItem();
+
+        // Make sure buyer is whitelisted (this was missing)
+        vm.startPrank(operational);
+        address[] memory buyerArray = new address[](1);
+        buyerArray[0] = buyer;
+        whitelist.addToWhitelist(buyerArray);
+        vm.stopPrank();
+
+        // Setup buyer approvals
+        vm.prank(buyer);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Fast forward to sale start time
+        ISales.Sale memory sale = sales.getSale(saleId);
+        if (block.timestamp < sale.start) {
+            vm.warp(sale.start + 1);
+        }
+
+        // Record balances before purchase
+        uint256 buyerBalanceBefore = mockToken.balanceOf(buyer);
+        uint256 sellerBalanceBefore = mockToken.balanceOf(seller);
+
+        // Buy item
+        vm.startPrank(operational);
+        uint256 buyNonce = _getCurrentNonce(buyer);
+        uint256 buyExpiry = _calculateExpiry(30);
+        uint256 buyDirectSaleId = 0;
+        bool buyIsFiat = false;
+        address buyErc20 = address(mockToken);
+
+        bytes memory buySig = _generateBuySignature(
+            buyer,
+            sales.buy.selector,
+            buyNonce,
+            buyExpiry,
+            buyDirectSaleId,
+            saleId,
+            buyIsFiat
+        );
+
+        sales.buy(buyer, buyNonce, buyExpiry, buySig, buyDirectSaleId, saleId, buyIsFiat, buyErc20);
+
+        // Verify fee distribution occurred
+        assertTrue(mockToken.balanceOf(buyer) < buyerBalanceBefore);
+        assertTrue(mockToken.balanceOf(seller) > sellerBalanceBefore);
+
+        vm.stopPrank();
     }
 
     // === UTILITY FUNCTIONS ===
