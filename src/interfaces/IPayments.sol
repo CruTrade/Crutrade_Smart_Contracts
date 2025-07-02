@@ -22,6 +22,18 @@ interface IPayments {
     }
 
     /**
+     * @dev Structure for membership fee configuration during initialization
+     * @param membershipId Membership ID
+     * @param sellerFee Fee percentage for sellers (in basis points)
+     * @param buyerFee Fee percentage for buyers (in basis points)
+     */
+    struct MembershipFeeConfig {
+        uint256 membershipId;
+        uint256 sellerFee;
+        uint256 buyerFee;
+    }
+
+    /**
      * @dev Structure for fee configuration
      * @param name Name of the fee
      * @param percentage Percentage of the fee (in basis points)
