@@ -95,10 +95,26 @@ abstract contract MembershipsBase is
      */
     function _setMemberships(address[] calldata members, uint256 id) internal {
         uint256 length = members.length;
+        address[] memory newMembers = new address[](length);
+        uint256 newMembersCount = 0;
         for (uint256 i = 0; i < length; i++) {
+            uint256 oldId = _memberships[members[i]];
             _memberships[members[i]] = id;
+            if (oldId != 0 && oldId != id) {
+                emit MembershipUpdated(members[i], oldId, id);
+            } else if (oldId == 0) {
+                newMembers[newMembersCount] = members[i];
+                newMembersCount++;
+            }
         }
-        emit Joined(members, id);
+        if (newMembersCount > 0) {
+            // Create a properly sized array for the event
+            address[] memory finalNewMembers = new address[](newMembersCount);
+            for (uint256 i = 0; i < newMembersCount; i++) {
+                finalNewMembers[i] = newMembers[i];
+            }
+            emit Joined(finalNewMembers, id);
+        }
     }
 
     /**
