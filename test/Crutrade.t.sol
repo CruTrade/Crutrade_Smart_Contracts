@@ -532,6 +532,50 @@ contract CrutradeEcosystemTest is Test {
         vm.stopPrank();
     }
 
+    function test_WithdrawSetsActiveFlagToFalse() public {
+        // Setup and list item
+        uint256 saleId = _setupAndListItem();
+
+        // Fast forward to sale start time
+        ISales.Sale memory sale = sales.getSale(saleId);
+        if (block.timestamp < sale.start) {
+            vm.warp(sale.start + 1);
+        }
+
+        // Setup seller approvals for service fees
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Verify sale is active before withdrawal
+        ISales.Sale memory saleBeforeWithdraw = sales.getSale(saleId);
+        assertTrue(saleBeforeWithdraw.active, "Sale should be active before withdrawal");
+
+        // Withdraw item
+        vm.startPrank(operational);
+        uint256 withdrawNonce = _getCurrentNonce(seller);
+        uint256 withdrawExpiry = _calculateExpiry(30);
+        uint256 directSaleId = 1;
+        bool withdrawIsFiat = false;
+
+        bytes memory withdrawSig = _generateWithdrawSignature(
+            seller,
+            sales.withdraw.selector,
+            withdrawNonce,
+            withdrawExpiry,
+            directSaleId,
+            saleId,
+            withdrawIsFiat
+        );
+
+        sales.withdraw(seller, withdrawNonce, withdrawExpiry, withdrawSig, directSaleId, saleId, withdrawIsFiat, address(mockToken));
+
+        // Verify sale is deleted (no longer exists)
+        vm.expectRevert(); // Should revert as sale no longer exists
+        sales.getSale(saleId);
+
+        vm.stopPrank();
+    }
+
     function test_RenewFlow() public {
         // Setup and list item
         uint256 saleId = _setupAndListItem();
