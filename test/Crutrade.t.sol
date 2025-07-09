@@ -2623,4 +2623,360 @@ contract CrutradeEcosystemTest is Test {
         }
     }
 
+    // === PRIMARY ADDRESS FUNCTIONALITY TESTS ===
+
+    function test_PrimaryAddressInitialization() public view {
+        // Test that primary addresses are set correctly during initialization
+        assertEq(roles.getPrimaryAddress(roles.DEFAULT_ADMIN_ROLE()), admin);
+        assertEq(roles.getPrimaryAddress(OWNER), admin);
+        assertEq(roles.getPrimaryAddress(OPERATIONAL), operational);
+        assertEq(roles.getPrimaryAddress(TREASURY), treasury);
+        assertEq(roles.getPrimaryAddress(PAUSER), admin);
+    }
+
+    function test_SetPrimaryAddressSuccess() public {
+        // Test setting primary address for a role
+        address newPrimary = makeAddr("newPrimary");
+
+        // First grant the role to the new address
+        vm.startPrank(admin);
+        roles.grantRole(PAUSER, newPrimary);
+
+        // Then set it as primary
+        roles.setPrimaryAddress(PAUSER, newPrimary);
+        vm.stopPrank();
+
+        // Verify the primary address was set correctly
+        assertEq(roles.getPrimaryAddress(PAUSER), newPrimary);
+
+        // Verify the original address still has the role
+        assertTrue(roles.hasRole(PAUSER, admin));
+        assertTrue(roles.hasRole(PAUSER, newPrimary));
+    }
+
+    function test_SetPrimaryAddressUnauthorized() public {
+        // Test that non-admin users cannot set primary addresses
+        address unauthorized = makeAddr("unauthorized");
+        address newPrimary = makeAddr("newPrimary");
+
+        vm.startPrank(admin);
+        roles.grantRole(PAUSER, newPrimary);
+        vm.stopPrank();
+
+        vm.startPrank(unauthorized);
+        vm.expectRevert(); // Should revert with access control error
+        roles.setPrimaryAddress(PAUSER, newPrimary);
+        vm.stopPrank();
+    }
+
+    function test_SetPrimaryAddressForAddressWithoutRole() public {
+        // Test that setting primary address fails for addresses without the role
+        address addressWithoutRole = makeAddr("addressWithoutRole");
+
+        vm.startPrank(admin);
+        vm.expectRevert(); // Should revert with InvalidRole error
+        roles.setPrimaryAddress(PAUSER, addressWithoutRole);
+        vm.stopPrank();
+    }
+
+    function test_SetPrimaryAddressEmitsEvent() public {
+        // Test that setting primary address emits the correct event
+        address newPrimary = makeAddr("newPrimary");
+
+        vm.startPrank(admin);
+        roles.grantRole(PAUSER, newPrimary);
+
+        vm.expectEmit(true, true, false, true);
+        emit RolesBase.PrimaryAddressChanged(PAUSER, newPrimary);
+        roles.setPrimaryAddress(PAUSER, newPrimary);
+        vm.stopPrank();
+    }
+
+    function test_MultipleAddressesSameRole() public {
+        // Test that multiple addresses can have the same role
+        address address1 = makeAddr("address1");
+        address address2 = makeAddr("address2");
+        address address3 = makeAddr("address3");
+
+        vm.startPrank(admin);
+
+        // Grant role to multiple addresses
+        roles.grantRole(PAUSER, address1);
+        roles.grantRole(PAUSER, address2);
+        roles.grantRole(PAUSER, address3);
+
+        // Verify all addresses have the role
+        assertTrue(roles.hasRole(PAUSER, address1));
+        assertTrue(roles.hasRole(PAUSER, address2));
+        assertTrue(roles.hasRole(PAUSER, address3));
+        assertTrue(roles.hasRole(PAUSER, admin)); // Original admin still has role
+
+        // Set different primary addresses
+        roles.setPrimaryAddress(PAUSER, address2);
+        assertEq(roles.getPrimaryAddress(PAUSER), address2);
+
+        roles.setPrimaryAddress(PAUSER, address3);
+        assertEq(roles.getPrimaryAddress(PAUSER), address3);
+
+        vm.stopPrank();
+    }
+
+    function test_GrantRoleSetsPrimaryAddress() public {
+        // Test that granting a role automatically sets it as primary if no primary exists
+        address newAddress = makeAddr("newAddress");
+        bytes32 uniqueRole = keccak256(abi.encodePacked("UNIQUE_ROLE_", block.timestamp));
+
+        vm.startPrank(admin);
+        roles.grantRole(uniqueRole, newAddress);
+        vm.stopPrank();
+
+        // Verify the new address is set as primary
+        assertEq(roles.getPrimaryAddress(uniqueRole), newAddress);
+        assertTrue(roles.hasRole(uniqueRole, newAddress));
+    }
+
+    function test_GrantRoleUpdatesPrimaryAddress() public {
+        // Test that granting a role to a new address updates the primary address
+        address originalPrimary = makeAddr("originalPrimary");
+        address newPrimary = makeAddr("newPrimary");
+        bytes32 uniqueRole = keccak256(abi.encodePacked("UNIQUE_ROLE_", block.timestamp));
+
+        vm.startPrank(admin);
+
+        // Grant role to first address (becomes primary)
+        roles.grantRole(uniqueRole, originalPrimary);
+        assertEq(roles.getPrimaryAddress(uniqueRole), originalPrimary);
+
+        // Grant role to second address (becomes new primary)
+        roles.grantRole(uniqueRole, newPrimary);
+        assertEq(roles.getPrimaryAddress(uniqueRole), newPrimary);
+
+        // Both addresses should still have the role
+        assertTrue(roles.hasRole(uniqueRole, originalPrimary));
+        assertTrue(roles.hasRole(uniqueRole, newPrimary));
+
+        vm.stopPrank();
+    }
+
+    function test_RevokeRoleClearsPrimaryAddress() public {
+        // Test that revoking the last address with a role clears the primary address
+        address singleAddress = makeAddr("singleAddress");
+        bytes32 uniqueRole = keccak256(abi.encodePacked("UNIQUE_ROLE_", block.timestamp));
+
+        vm.startPrank(admin);
+
+        // Grant role to single address
+        roles.grantRole(uniqueRole, singleAddress);
+        assertEq(roles.getPrimaryAddress(uniqueRole), singleAddress);
+
+        // Revoke role
+        roles.revokeRole(uniqueRole, singleAddress);
+
+        // Primary address should be cleared
+        assertEq(roles.getPrimaryAddress(uniqueRole), address(0));
+        assertFalse(roles.hasRole(uniqueRole, singleAddress));
+
+        vm.stopPrank();
+    }
+
+    function test_RevokeRoleKeepsPrimaryAddress() public {
+        // Test that revoking a role from one address keeps primary address if others have the role
+        address address1 = makeAddr("address1");
+        address address2 = makeAddr("address2");
+        bytes32 uniqueRole = keccak256(abi.encodePacked("UNIQUE_ROLE_", block.timestamp));
+
+        vm.startPrank(admin);
+
+        // Grant role to both addresses
+        roles.grantRole(uniqueRole, address1);
+        roles.grantRole(uniqueRole, address2);
+
+        // address2 should be primary (last one granted)
+        assertEq(roles.getPrimaryAddress(uniqueRole), address2);
+
+        // Revoke role from address1
+        roles.revokeRole(uniqueRole, address1);
+
+        // address2 should still be primary
+        assertEq(roles.getPrimaryAddress(uniqueRole), address2);
+        assertFalse(roles.hasRole(uniqueRole, address1));
+        assertTrue(roles.hasRole(uniqueRole, address2));
+
+        vm.stopPrank();
+    }
+
+    function test_GetPrimaryAddressForNonExistentRole() public view {
+        // Test getting primary address for a role that doesn't exist
+        bytes32 nonExistentRole = keccak256("NON_EXISTENT_ROLE");
+        assertEq(roles.getPrimaryAddress(nonExistentRole), address(0));
+    }
+
+    function test_BackwardCompatibilityGetRoleAddress() public {
+        // Test that getRoleAddress still works (backward compatibility)
+        address newPrimary = makeAddr("newPrimary");
+
+        vm.startPrank(admin);
+        roles.grantRole(PAUSER, newPrimary);
+        roles.setPrimaryAddress(PAUSER, newPrimary);
+        vm.stopPrank();
+
+        // Both functions should return the same result
+        assertEq(roles.getRoleAddress(PAUSER), roles.getPrimaryAddress(PAUSER));
+        assertEq(roles.getRoleAddress(PAUSER), newPrimary);
+    }
+
+    function test_PrimaryAddressWithContractRoles() public {
+        // Test primary address functionality with contract roles
+        address contract1 = makeAddr("contract1");
+        address contract2 = makeAddr("contract2");
+
+        vm.startPrank(admin);
+
+        // Grant contract roles
+        roles.grantRole(WHITELIST, contract1);
+        roles.grantRole(WHITELIST, contract2);
+
+        // Set primary contract
+        roles.setPrimaryAddress(WHITELIST, contract2);
+
+        // Verify primary contract is set correctly
+        assertEq(roles.getPrimaryAddress(WHITELIST), contract2);
+        assertTrue(roles.hasRole(WHITELIST, contract1));
+        assertTrue(roles.hasRole(WHITELIST, contract2));
+
+        vm.stopPrank();
+    }
+
+    function test_PrimaryAddressChangeWithExistingRole() public {
+        // Test changing primary address when the new primary already has the role
+        address address1 = makeAddr("address1");
+        address address2 = makeAddr("address2");
+
+        vm.startPrank(admin);
+
+        // Grant role to both addresses
+        roles.grantRole(PAUSER, address1);
+        roles.grantRole(PAUSER, address2);
+
+        // address2 should be primary (last one granted)
+        assertEq(roles.getPrimaryAddress(PAUSER), address2);
+
+        // Change primary to address1
+        roles.setPrimaryAddress(PAUSER, address1);
+        assertEq(roles.getPrimaryAddress(PAUSER), address1);
+
+        // Both should still have the role
+        assertTrue(roles.hasRole(PAUSER, address1));
+        assertTrue(roles.hasRole(PAUSER, address2));
+
+        vm.stopPrank();
+    }
+
+        function test_PrimaryAddressZeroAddress() public {
+        // Test that setting primary address to zero address fails (as expected)
+        address testAddress = makeAddr("testAddress");
+
+        vm.startPrank(admin);
+        roles.grantRole(PAUSER, testAddress);
+        assertEq(roles.getPrimaryAddress(PAUSER), testAddress);
+
+        // This should fail because address(0) doesn't have the role
+        vm.expectRevert(); // Should revert with InvalidRole error
+        roles.setPrimaryAddress(PAUSER, address(0));
+
+        // Primary address should remain unchanged
+        assertEq(roles.getPrimaryAddress(PAUSER), testAddress);
+
+        vm.stopPrank();
+    }
+
+    function test_PrimaryAddressEventEmission() public {
+        // Test that all primary address changes emit events
+        address address1 = makeAddr("address1");
+        address address2 = makeAddr("address2");
+
+        vm.startPrank(admin);
+
+        // Granting role should emit event
+        vm.expectEmit(true, true, false, true);
+        emit RolesBase.PrimaryAddressChanged(PAUSER, address1);
+        roles.grantRole(PAUSER, address1);
+
+        // Setting primary address should emit event
+        vm.expectEmit(true, true, false, true);
+        emit RolesBase.PrimaryAddressChanged(PAUSER, address2);
+        roles.grantRole(PAUSER, address2);
+
+        // Explicitly setting primary address should emit event
+        vm.expectEmit(true, true, false, true);
+        emit RolesBase.PrimaryAddressChanged(PAUSER, address1);
+        roles.setPrimaryAddress(PAUSER, address1);
+
+        vm.stopPrank();
+    }
+
+            function test_PrimaryAddressIntegrationWithExistingRoles() public {
+        // Test that primary address functionality works with all existing role types
+        address testAddress = makeAddr("testAddress");
+
+        vm.startPrank(admin);
+
+        // Test with different role types - use unique roles to avoid conflicts
+        bytes32[] memory roleTypes = new bytes32[](3);
+        roleTypes[0] = keccak256(abi.encodePacked("CUSTOM_ROLE_", block.timestamp, "1"));
+        roleTypes[1] = keccak256(abi.encodePacked("CUSTOM_ROLE_", block.timestamp, "2"));
+        roleTypes[2] = keccak256(abi.encodePacked("CUSTOM_ROLE_", block.timestamp, "3"));
+
+        for (uint256 i = 0; i < roleTypes.length; i++) {
+            // Grant role
+            roles.grantRole(roleTypes[i], testAddress);
+
+            // Verify primary address is set
+            assertEq(roles.getPrimaryAddress(roleTypes[i]), testAddress);
+            assertTrue(roles.hasRole(roleTypes[i], testAddress));
+
+            // Revoke role
+            roles.revokeRole(roleTypes[i], testAddress);
+
+            // Verify primary address is cleared
+            assertEq(roles.getPrimaryAddress(roleTypes[i]), address(0));
+            assertFalse(roles.hasRole(roleTypes[i], testAddress));
+        }
+
+        vm.stopPrank();
+    }
+
+    function test_PrimaryAddressManualReassignment() public {
+        // Test the complete workflow: add two addresses, clear the primary, then manually reassign
+        address address1 = makeAddr("address1");
+        address address2 = makeAddr("address2");
+        bytes32 uniqueRole = keccak256(abi.encodePacked("UNIQUE_ROLE_", block.timestamp));
+
+        vm.startPrank(admin);
+
+        // Grant role to first address (becomes primary)
+        roles.grantRole(uniqueRole, address1);
+        assertEq(roles.getPrimaryAddress(uniqueRole), address1);
+        assertTrue(roles.hasRole(uniqueRole, address1));
+
+        // Grant role to second address (becomes new primary)
+        roles.grantRole(uniqueRole, address2);
+        assertEq(roles.getPrimaryAddress(uniqueRole), address2);
+        assertTrue(roles.hasRole(uniqueRole, address1));
+        assertTrue(roles.hasRole(uniqueRole, address2));
+
+        // Revoke role from second address (which is primary) - primary should be cleared
+        roles.revokeRole(uniqueRole, address2);
+        assertEq(roles.getPrimaryAddress(uniqueRole), address(0));
+        assertTrue(roles.hasRole(uniqueRole, address1));
+        assertFalse(roles.hasRole(uniqueRole, address2));
+
+        // Manually set first address as primary
+        roles.setPrimaryAddress(uniqueRole, address1);
+        assertEq(roles.getPrimaryAddress(uniqueRole), address1);
+        assertTrue(roles.hasRole(uniqueRole, address1));
+
+        vm.stopPrank();
+    }
+
 }

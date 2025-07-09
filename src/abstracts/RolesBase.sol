@@ -39,8 +39,8 @@ abstract contract RolesBase is
     /// @dev Maps contracts to their delegation status
     mapping(address => bool) internal _delegated;
 
-    /// @dev Maps roles to their assigned addresses
-    mapping(bytes32 => address) internal _addresses;
+    /// @dev Maps roles to their primary assigned addresses
+    mapping(bytes32 => address) internal _primaryAddresses;
 
     /// @dev Address of the default fiat token
     address internal _defaultFiatToken;
@@ -72,6 +72,13 @@ abstract contract RolesBase is
      */
     event DelegateRoleRevoked(address indexed contractAddress);
 
+    /**
+     * @dev Emitted when the primary address for a role is changed
+     * @param role Role identifier
+     * @param newPrimaryAddress New primary address for the role
+     */
+    event PrimaryAddressChanged(bytes32 indexed role, address indexed newPrimaryAddress);
+
     /* ERRORS */
 
     /// @dev Thrown when a payment token is not configured
@@ -98,7 +105,7 @@ abstract contract RolesBase is
         __UUPSUpgradeable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-        _addresses[DEFAULT_ADMIN_ROLE] = defaultAdmin;
+        _primaryAddresses[DEFAULT_ADMIN_ROLE] = defaultAdmin;
     }
 
     /* PAYMENT CONFIGURATION */
@@ -174,7 +181,7 @@ abstract contract RolesBase is
      * @return Address assigned to the role
      */
     function _getRoleAddress(bytes32 role) internal view returns (address) {
-        return _addresses[role];
+        return _primaryAddresses[role];
     }
 
     /**
@@ -195,5 +202,26 @@ abstract contract RolesBase is
         address contractAddress
     ) internal view returns (bool) {
         return _delegated[contractAddress];
+    }
+
+    /**
+     * @notice Sets the primary address for a role
+     * @param role Role identifier
+     * @param account Address to set as primary for the role
+     */
+    function _setPrimaryAddress(bytes32 role, address account) internal {
+        // Allow setting address(0) to clear the primary address
+        if (account != address(0) && !hasRole(role, account)) revert InvalidRole(role);
+        _primaryAddresses[role] = account;
+        emit PrimaryAddressChanged(role, account);
+    }
+
+    /**
+     * @notice Gets the primary address for a role
+     * @param role Role identifier
+     * @return Address assigned as primary for the role
+     */
+    function _getPrimaryAddress(bytes32 role) internal view returns (address) {
+        return _primaryAddresses[role];
     }
 }
