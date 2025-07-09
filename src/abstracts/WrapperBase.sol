@@ -166,6 +166,7 @@ abstract contract WrapperBase is
         if (!wrapper.active) revert InvalidToken();
         if (wrapper.collection == bytes32(0)) revert WrapperNotFound(wrapperId);
         wrapper.active = false;
+        _wrappersByCollection[wrapper.collection].remove(wrapperId);
     }
 
     /**
