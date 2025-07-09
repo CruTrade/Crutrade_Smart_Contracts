@@ -44,6 +44,13 @@ interface IRoles is IAccessControl {
     function getRoleAddress(bytes32 role) external view returns (address);
 
     /**
+     * @notice Retrieves the primary address assigned to a specific role
+     * @param role Role identifier
+     * @return Primary address assigned to the role
+     */
+    function getPrimaryAddress(bytes32 role) external view returns (address);
+
+    /**
      * @notice Retrieves the default fiat payment token address
      * @return Address of the default fiat payment token
      */

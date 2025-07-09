@@ -128,12 +128,33 @@ contract Roles is RolesBase, IRoles {
   }
 
   /**
+   * @notice Sets the primary address for a role
+   * @dev Only allows setting an address that already has the specified role
+   * @param role Role identifier
+   * @param account Address to set as primary for the role
+   */
+  function setPrimaryAddress(bytes32 role, address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    if (!hasRole(role, account)) revert InvalidRole(role);
+    _setPrimaryAddress(role, account);
+  }
+
+  /**
+   * @notice Retrieves the primary address assigned to a specific role
+   * @param role Role identifier
+   * @return Address assigned as primary for the role
+   */
+  function getPrimaryAddress(bytes32 role) external view override returns (address) {
+    return _getPrimaryAddress(role);
+  }
+
+  /**
    * @notice Retrieves the address assigned to a specific role
    * @param role Role identifier
    * @return Address assigned to the role
+   * @dev @deprecated Use getPrimaryAddress instead for clarity
    */
   function getRoleAddress(bytes32 role) external view override returns (address) {
-    return _addresses[role];
+    return _getPrimaryAddress(role);
   }
 
   /**
@@ -173,28 +194,30 @@ contract Roles is RolesBase, IRoles {
   /* ROLE MANAGEMENT */
 
   /**
-   * @dev Override _grantRole to also update the _addresses mapping
+   * @notice Grants a role to an address and sets it as the primary address
+   * @dev Override _grantRole to also update the primary address mapping
    * @param role Role to grant
    * @param account Account to grant the role to
    * @return bool Whether the role was granted
    */
   function _grantRole(bytes32 role, address account) internal virtual override returns (bool) {
     bool result = super._grantRole(role, account);
-    _addresses[role] = account;
+    _setPrimaryAddress(role, account);
     return result;
   }
 
   /**
-   * @dev Override _revokeRole to also clear the _addresses mapping
+   * @dev Override _revokeRole to also clear the primary address mapping if no other addresses have the role
    * @param role Role to revoke
    * @param account Account to revoke the role from
    * @return bool Whether the role was revoked
    */
   function _revokeRole(bytes32 role, address account) internal virtual override returns (bool) {
-    bool result = super._revokeRole(role, account);
-    if (!hasRole(role, account)) {
-      _addresses[role] = address(0);
+    bool revoked = super._revokeRole(role, account);
+    if (!hasRole(role, account) && _getPrimaryAddress(role) == account) {
+      // If we're revoking from the primary address, clear the primary address
+      _setPrimaryAddress(role, address(0));
     }
-    return result;
+    return revoked;
   }
 }
