@@ -16,6 +16,7 @@ import "../src/Brands.sol";
 // Import base contracts for structs
 import "../src/abstracts/SalesBase.sol";
 import "../src/abstracts/ModifiersBase.sol";
+import "../src/abstracts/MembershipsBase.sol";
 
 // Import interfaces
 import "../src/interfaces/IWrappers.sol";
@@ -2975,6 +2976,189 @@ contract CrutradeEcosystemTest is Test {
         roles.setPrimaryAddress(uniqueRole, address1);
         assertEq(roles.getPrimaryAddress(uniqueRole), address1);
         assertTrue(roles.hasRole(uniqueRole, address1));
+
+        vm.stopPrank();
+    }
+
+    function test_SetMembershipsEventEmissions() public {
+        vm.startPrank(operational);
+
+        // Test 1: All new members (should emit Joined event)
+        address[] memory newMembers = new address[](3);
+        newMembers[0] = makeAddr("user1");
+        newMembers[1] = makeAddr("user2");
+        newMembers[2] = makeAddr("user3");
+
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.Joined(newMembers, 1);
+        memberships.setMemberships(newMembers, 1);
+
+        // Verify memberships were set
+        assertEq(memberships.getMembership(newMembers[0]), 1);
+        assertEq(memberships.getMembership(newMembers[1]), 1);
+        assertEq(memberships.getMembership(newMembers[2]), 1);
+
+        // Test 2: Mixed scenario - some existing members with same ID, some new members
+        address[] memory mixedMembers = new address[](4);
+        mixedMembers[0] = newMembers[0]; // existing member with same ID (should not emit)
+        mixedMembers[1] = makeAddr("user4"); // new member (should emit)
+        mixedMembers[2] = makeAddr("user5"); // new member (should emit)
+        mixedMembers[3] = newMembers[1]; // existing member with same ID (should not emit)
+
+        // Create expected array for new members only
+        address[] memory expectedNewMembers = new address[](2);
+        expectedNewMembers[0] = mixedMembers[1];
+        expectedNewMembers[1] = mixedMembers[2];
+
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.Joined(expectedNewMembers, 2);
+        memberships.setMemberships(mixedMembers, 2);
+
+        // Verify memberships were updated correctly
+        assertEq(memberships.getMembership(mixedMembers[0]), 2); // updated from 1 to 2
+        assertEq(memberships.getMembership(mixedMembers[1]), 2); // new member
+        assertEq(memberships.getMembership(mixedMembers[2]), 2); // new member
+        assertEq(memberships.getMembership(mixedMembers[3]), 2); // updated from 1 to 2
+
+        // Test 3: All existing members with different IDs (should emit MembershipUpdated for each)
+        address[] memory existingMembers = new address[](2);
+        existingMembers[0] = mixedMembers[0]; // has ID 2, will be updated to 3
+        existingMembers[1] = mixedMembers[1]; // has ID 2, will be updated to 3
+
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.MembershipUpdated(existingMembers[0], 2, 3);
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.MembershipUpdated(existingMembers[1], 2, 3);
+        memberships.setMemberships(existingMembers, 3);
+
+        // Verify memberships were updated
+        assertEq(memberships.getMembership(existingMembers[0]), 3);
+        assertEq(memberships.getMembership(existingMembers[1]), 3);
+
+        // Test 4: Empty array should revert
+        address[] memory emptyArray = new address[](0);
+        vm.expectRevert(abi.encodeWithSelector(MembershipsBase.InvalidMembershipOperation.selector));
+        memberships.setMemberships(emptyArray, 1);
+
+        vm.stopPrank();
+    }
+
+    function test_SetMembershipsEventEmissionsEdgeCases() public {
+        vm.startPrank(operational);
+
+        // Test 1: Single member scenarios
+        address[] memory singleMember = new address[](1);
+        singleMember[0] = makeAddr("singleUser");
+
+        // New single member
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.Joined(singleMember, 1);
+        memberships.setMemberships(singleMember, 1);
+
+        // Same member, same ID (should not emit anything)
+        memberships.setMemberships(singleMember, 1);
+
+        // Same member, different ID (should emit MembershipUpdated)
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.MembershipUpdated(singleMember[0], 1, 2);
+        memberships.setMemberships(singleMember, 2);
+
+        // Test 2: Large batch with mixed scenarios
+        address[] memory largeBatch = new address[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            largeBatch[i] = makeAddr(string(abi.encodePacked("user", i)));
+        }
+
+        // First assignment - all new members
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.Joined(largeBatch, 5);
+        memberships.setMemberships(largeBatch, 5);
+
+        // Second assignment - same members, same ID (should not emit)
+        memberships.setMemberships(largeBatch, 5);
+
+        // Third assignment - same members, different ID (should emit MembershipUpdated for all)
+        for (uint256 i = 0; i < 10; i++) {
+            vm.expectEmit(true, false, false, true);
+            emit MembershipsBase.MembershipUpdated(largeBatch[i], 5, 6);
+        }
+        memberships.setMemberships(largeBatch, 6);
+
+        // Test 3: Mixed batch with some existing, some new, some same ID
+        address[] memory mixedBatch = new address[](5);
+        mixedBatch[0] = largeBatch[0]; // existing with ID 6
+        mixedBatch[1] = makeAddr("newUser1"); // new user
+        mixedBatch[2] = largeBatch[1]; // existing with ID 6
+        mixedBatch[3] = makeAddr("newUser2"); // new user
+        mixedBatch[4] = largeBatch[2]; // existing with ID 6
+
+        // Create expected array for new members only
+        address[] memory expectedNewMembers = new address[](2);
+        expectedNewMembers[0] = mixedBatch[1];
+        expectedNewMembers[1] = mixedBatch[3];
+
+        // Should emit MembershipUpdated for existing members with different IDs
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.MembershipUpdated(mixedBatch[0], 6, 7);
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.MembershipUpdated(mixedBatch[2], 6, 7);
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.MembershipUpdated(mixedBatch[4], 6, 7);
+
+        // And Joined for new members
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.Joined(expectedNewMembers, 7);
+
+        memberships.setMemberships(mixedBatch, 7);
+
+        // Verify all memberships are correct
+        assertEq(memberships.getMembership(mixedBatch[0]), 7);
+        assertEq(memberships.getMembership(mixedBatch[1]), 7);
+        assertEq(memberships.getMembership(mixedBatch[2]), 7);
+        assertEq(memberships.getMembership(mixedBatch[3]), 7);
+        assertEq(memberships.getMembership(mixedBatch[4]), 7);
+
+        vm.stopPrank();
+    }
+
+    function test_SetMembershipsEventEmissionsFuzz(uint256 membershipId, uint256 numMembers) public {
+        // Bound the inputs to reasonable ranges
+        membershipId = bound(membershipId, 1, 1000);
+        numMembers = bound(numMembers, 1, 20); // Limit to 20 members for gas efficiency
+
+        vm.startPrank(operational);
+
+        // Create array of unique addresses
+        address[] memory members = new address[](numMembers);
+        for (uint256 i = 0; i < numMembers; i++) {
+            members[i] = makeAddr(string(abi.encodePacked("fuzzUser", i)));
+        }
+
+        // First assignment - all should be new members
+        vm.expectEmit(true, false, false, true);
+        emit MembershipsBase.Joined(members, membershipId);
+        memberships.setMemberships(members, membershipId);
+
+        // Verify all memberships were set
+        for (uint256 i = 0; i < numMembers; i++) {
+            assertEq(memberships.getMembership(members[i]), membershipId);
+        }
+
+        // Second assignment with same ID - should not emit any events
+        memberships.setMemberships(members, membershipId);
+
+        // Third assignment with different ID - should emit MembershipUpdated for all
+        uint256 newMembershipId = membershipId + 1;
+        for (uint256 i = 0; i < numMembers; i++) {
+            vm.expectEmit(true, false, false, true);
+            emit MembershipsBase.MembershipUpdated(members[i], membershipId, newMembershipId);
+        }
+        memberships.setMemberships(members, newMembershipId);
+
+        // Verify all memberships were updated
+        for (uint256 i = 0; i < numMembers; i++) {
+            assertEq(memberships.getMembership(members[i]), newMembershipId);
+        }
 
         vm.stopPrank();
     }
