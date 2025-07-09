@@ -550,6 +550,7 @@ abstract contract SalesBase is
         bytes32 collection = wrappers.getWrapperData(wrapperId).collection;
 
         // Update state before external calls
+        sale.active = false;
         _saleIdsByCollection[collection].remove(saleId);
         _saleIdsBySeller[seller].remove(saleId);
         delete _salesById[saleId];

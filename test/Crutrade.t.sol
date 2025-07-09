@@ -533,6 +533,50 @@ contract CrutradeEcosystemTest is Test {
         vm.stopPrank();
     }
 
+    function test_WithdrawSetsActiveFlagToFalse() public {
+        // Setup and list item
+        uint256 saleId = _setupAndListItem();
+
+        // Fast forward to sale start time
+        ISales.Sale memory sale = sales.getSale(saleId);
+        if (block.timestamp < sale.start) {
+            vm.warp(sale.start + 1);
+        }
+
+        // Setup seller approvals for service fees
+        vm.prank(seller);
+        mockToken.approve(address(payments), type(uint256).max);
+
+        // Verify sale is active before withdrawal
+        ISales.Sale memory saleBeforeWithdraw = sales.getSale(saleId);
+        assertTrue(saleBeforeWithdraw.active, "Sale should be active before withdrawal");
+
+        // Withdraw item
+        vm.startPrank(operational);
+        uint256 withdrawNonce = _getCurrentNonce(seller);
+        uint256 withdrawExpiry = _calculateExpiry(30);
+        uint256 directSaleId = 1;
+        bool withdrawIsFiat = false;
+
+        bytes memory withdrawSig = _generateWithdrawSignature(
+            seller,
+            sales.withdraw.selector,
+            withdrawNonce,
+            withdrawExpiry,
+            directSaleId,
+            saleId,
+            withdrawIsFiat
+        );
+
+        sales.withdraw(seller, withdrawNonce, withdrawExpiry, withdrawSig, directSaleId, saleId, withdrawIsFiat, address(mockToken));
+
+        // Verify sale is deleted (no longer exists)
+        vm.expectRevert(); // Should revert as sale no longer exists
+        sales.getSale(saleId);
+
+        vm.stopPrank();
+    }
+
     function test_RenewFlow() public {
         // Setup and list item
         uint256 saleId = _setupAndListItem();
@@ -2976,6 +3020,238 @@ contract CrutradeEcosystemTest is Test {
         roles.setPrimaryAddress(uniqueRole, address1);
         assertEq(roles.getPrimaryAddress(uniqueRole), address1);
         assertTrue(roles.hasRole(uniqueRole, address1));
+
+        vm.stopPrank();
+    }
+
+    // ============================================================================
+    // VULNERABILITY TEST: Wrapper Export State Inconsistency
+    // ============================================================================
+
+    /**
+     * @notice Test checking the intended behavior after fixing _processSingleExport
+     * @dev This test should FAIL with current buggy code and PASS after the fix
+     *      It verifies that exported wrappers are properly removed from collections
+     */
+    function test_WrapperExportRemovesFromCollection() public {
+        // Setup: Add user to whitelist and grant operational role
+        vm.startPrank(admin);
+        address[] memory sellers = new address[](1);
+        sellers[0] = seller;
+        whitelist.addToWhitelist(sellers);
+        vm.stopPrank();
+
+        vm.startPrank(operational);
+
+        // Step 1: Import wrappers into a collection
+        bytes32 testCollection = keccak256("TEST_COLLECTION");
+
+        IWrappers.WrapperData[] memory importWrappers = new IWrappers.WrapperData[](3);
+        importWrappers[0] = IWrappers.WrapperData({
+            uri: "https://example.com/1",
+            metaKey: "meta1",
+            amount: 0,
+            tokenId: 1001,
+            brandId: 1,
+            collection: testCollection,
+            active: false // Will be set to true during import
+        });
+
+        importWrappers[1] = IWrappers.WrapperData({
+            uri: "https://example.com/2",
+            metaKey: "meta2",
+            amount: 0,
+            tokenId: 1002,
+            brandId: 1,
+            collection: testCollection,
+            active: false
+        });
+
+        importWrappers[2] = IWrappers.WrapperData({
+            uri: "https://example.com/3",
+            metaKey: "meta3",
+            amount: 0,
+            tokenId: 1003,
+            brandId: 1,
+            collection: testCollection,
+            active: false
+        });
+
+        // Import the wrappers
+        wrappers.imports(seller, importWrappers);
+
+        // Step 2: Verify initial state
+        assertTrue(wrappers.isValidCollection(testCollection), "Collection should be valid after import");
+        IWrappers.WrapperData[] memory initialCollectionData = wrappers.getCollectionData(testCollection);
+        assertEq(initialCollectionData.length, 3, "Collection should contain 3 active wrappers");
+
+        // Step 3: Export (deactivate) one wrapper
+        uint256[] memory wrapperIdsToExport = new uint256[](1);
+        wrapperIdsToExport[0] = 1; // Export the first wrapper (ID 1)
+        wrappers.exports(seller, wrapperIdsToExport);
+
+        // Step 4: Verify the wrapper is deactivated
+        IWrappers.WrapperData memory exportedWrapper = wrappers.getWrapperData(1);
+        assertFalse(exportedWrapper.active, "Exported wrapper should be inactive");
+
+        // Step 5: INTENDED BEHAVIOR - Collection should now contain only 2 active wrappers
+        // This will FAIL with current buggy code and PASS after the fix
+        IWrappers.WrapperData[] memory collectionDataAfterExport = wrappers.getCollectionData(testCollection);
+        assertEq(collectionDataAfterExport.length, 2, "Collection should contain only 2 active wrappers after export");
+
+        // Step 6: Verify only active wrappers remain in collection
+        for (uint256 i = 0; i < collectionDataAfterExport.length; i++) {
+            assertTrue(collectionDataAfterExport[i].active, "All wrappers in collection should be active");
+            assertEq(collectionDataAfterExport[i].collection, testCollection, "All wrappers should belong to test collection");
+        }
+
+        // Step 7: Verify the exported wrapper is NOT in the collection data
+        bool foundExportedWrapper = false;
+        for (uint256 i = 0; i < collectionDataAfterExport.length; i++) {
+            if (collectionDataAfterExport[i].tokenId == 1001) { // First wrapper has tokenId 1001
+                foundExportedWrapper = true;
+                break;
+            }
+        }
+        assertFalse(foundExportedWrapper, "Exported wrapper should not be in collection data");
+
+        // Step 8: Export all remaining wrappers
+        uint256[] memory remainingWrapperIds = new uint256[](2);
+        remainingWrapperIds[0] = 2;
+        remainingWrapperIds[1] = 3;
+        wrappers.exports(seller, remainingWrapperIds);
+
+        // Step 9: INTENDED BEHAVIOR - Collection should now be invalid (empty)
+        // This will FAIL with current buggy code and PASS after the fix
+        assertFalse(wrappers.isValidCollection(testCollection), "Collection should be invalid when all wrappers are exported");
+
+        // Step 10: Collection data should throw CollectionNotFound when empty
+        vm.expectRevert(abi.encodeWithSelector(WrapperBase.CollectionNotFound.selector, testCollection));
+        wrappers.getCollectionData(testCollection);
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test checking that dApp logic works correctly after fixing _processSingleExport
+     */
+    function test_WrapperExportCollectionDataConsistency() public {
+        // Setup: Add user to whitelist and grant operational role
+        vm.startPrank(admin);
+        address[] memory sellers = new address[](1);
+        sellers[0] = seller;
+        whitelist.addToWhitelist(sellers);
+        vm.stopPrank();
+
+        vm.startPrank(operational);
+
+        // Import a wrapper
+        bytes32 testCollection = keccak256("TEST_COLLECTION");
+
+        IWrappers.WrapperData[] memory importWrappers = new IWrappers.WrapperData[](1);
+        importWrappers[0] = IWrappers.WrapperData({
+            uri: "https://example.com/1",
+            metaKey: "meta1",
+            amount: 0,
+            tokenId: 1001,
+            brandId: 1,
+            collection: testCollection,
+            active: false
+        });
+
+        wrappers.imports(seller, importWrappers);
+
+        // Export the wrapper
+        uint256[] memory wrapperIdsToExport = new uint256[](1);
+        wrapperIdsToExport[0] = 1;
+        wrappers.exports(seller, wrapperIdsToExport);
+
+        // INTENDED BEHAVIOR - Collection should be invalid
+        // This will FAIL with current buggy code and PASS after the fix
+        assertFalse(wrappers.isValidCollection(testCollection), "Collection should be invalid when empty");
+
+        // INTENDED BEHAVIOR - Collection data should throw CollectionNotFound when empty
+        // This will FAIL with current buggy code and PASS after the fix
+        vm.expectRevert(abi.encodeWithSelector(WrapperBase.CollectionNotFound.selector, testCollection));
+        wrappers.getCollectionData(testCollection);
+
+        // Verify the wrapper still exists but is inactive
+        IWrappers.WrapperData memory exportedWrapper = wrappers.getWrapperData(1);
+        assertFalse(exportedWrapper.active, "Exported wrapper should be inactive");
+
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Test checking that collection queries return accurate counts after fixing _processSingleExport
+     */
+    function test_WrapperExportAccurateCollectionCounts() public {
+        // Setup: Add user to whitelist and grant operational role
+        vm.startPrank(admin);
+        address[] memory users = new address[](2);
+        users[0] = seller;
+        users[1] = buyer;
+        whitelist.addToWhitelist(users);
+        vm.stopPrank();
+
+        vm.startPrank(operational);
+
+        // Import wrappers
+        bytes32 testCollection = keccak256("TEST_COLLECTION");
+
+        IWrappers.WrapperData[] memory importWrappers = new IWrappers.WrapperData[](2);
+        importWrappers[0] = IWrappers.WrapperData({
+            uri: "https://example.com/1",
+            metaKey: "meta1",
+            amount: 0,
+            tokenId: 1001,
+            brandId: 1,
+            collection: testCollection,
+            active: false
+        });
+
+        importWrappers[1] = IWrappers.WrapperData({
+            uri: "https://example.com/2",
+            metaKey: "meta2",
+            amount: 0,
+            tokenId: 1002,
+            brandId: 1,
+            collection: testCollection,
+            active: false
+        });
+
+        wrappers.imports(seller, importWrappers);
+
+        // Export one wrapper
+        uint256[] memory wrapperIdsToExport = new uint256[](1);
+        wrapperIdsToExport[0] = 1;
+        wrappers.exports(seller, wrapperIdsToExport);
+
+        // INTENDED BEHAVIOR - Collection should contain exactly 1 active wrapper
+        // This will FAIL with current buggy code and PASS after the fix
+        IWrappers.WrapperData[] memory collectionData = wrappers.getCollectionData(testCollection);
+        assertEq(collectionData.length, 1, "Collection should contain exactly 1 active wrapper");
+
+        // INTENDED BEHAVIOR - All wrappers in collection should be active
+        // This will FAIL with current buggy code and PASS after the fix
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < collectionData.length; i++) {
+            if (collectionData[i].active) {
+                activeCount++;
+            }
+        }
+        assertEq(activeCount, 1, "All wrappers in collection should be active");
+        assertEq(collectionData.length, activeCount, "Collection size should match active wrapper count");
+
+        // Verify the exported wrapper is not in the collection
+        bool foundExportedWrapper = false;
+        for (uint256 i = 0; i < collectionData.length; i++) {
+            if (collectionData[i].tokenId == 1001) { // First wrapper has tokenId 1001
+                foundExportedWrapper = true;
+                break;
+            }
+        }
+        assertFalse(foundExportedWrapper, "Exported wrapper should not be in collection data");
 
         vm.stopPrank();
     }
