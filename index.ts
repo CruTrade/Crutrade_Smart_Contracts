@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-06-17T21:00:45.285Z
+// Updated: 2025-07-12T02:38:57.633Z
 
 import type { Address } from 'viem';
 
@@ -41,6 +41,25 @@ export const abis = {
     "type": "function",
     "name": "getDefaultFiatPayment",
     "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPrimaryAddress",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
     "outputs": [
       {
         "name": "",
@@ -191,7 +210,7 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "usdtAddress",
+        "name": "usdcAddress",
         "type": "address",
         "internalType": "address"
       },
@@ -339,6 +358,24 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "setPrimaryAddress",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "supportsInterface",
     "inputs": [
       {
@@ -461,6 +498,25 @@ export const abis = {
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PrimaryAddressChanged",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newPrimaryAddress",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -626,7 +682,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -797,6 +853,38 @@ export const abis = {
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -1237,6 +1325,25 @@ export const abis = {
   },
   {
     "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Paused",
     "inputs": [
       {
@@ -1465,7 +1572,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -1505,6 +1612,22 @@ export const abis = {
     "type": "error",
     "name": "InvalidInitialization",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -1594,6 +1717,22 @@ export const abis = {
         "name": "payment",
         "type": "address",
         "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -1806,6 +1945,38 @@ export const abis = {
             "internalType": "bool"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -2453,6 +2624,25 @@ export const abis = {
   },
   {
     "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Paused",
     "inputs": [
       {
@@ -2686,7 +2876,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -2731,6 +2921,22 @@ export const abis = {
     "type": "error",
     "name": "InvalidInitialization",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -2825,6 +3031,22 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UUPSUnauthorizedCallContext",
     "inputs": []
   },
@@ -2903,6 +3125,38 @@ export const abis = {
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -3048,6 +3302,25 @@ export const abis = {
   },
   {
     "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Paused",
     "inputs": [
       {
@@ -3150,7 +3423,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -3179,6 +3452,22 @@ export const abis = {
     "type": "error",
     "name": "InvalidInitialization",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -3268,6 +3557,22 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UUPSUnauthorizedCallContext",
     "inputs": []
   },
@@ -3332,6 +3637,19 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getFee",
     "inputs": [
       {
@@ -3344,7 +3662,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct Fee",
+        "internalType": "struct IPayments.Fee",
         "components": [
           {
             "name": "name",
@@ -3374,7 +3692,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple[]",
-        "internalType": "struct Fee[]",
+        "internalType": "struct IPayments.Fee[]",
         "components": [
           {
             "name": "name",
@@ -3422,12 +3740,63 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "initialize",
     "inputs": [
       {
         "name": "_roles",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_treasuryAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_fiatFeePercentage",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_initialMembershipFees",
+        "type": "tuple[]",
+        "internalType": "struct IPayments.MembershipFeeConfig[]",
+        "components": [
+          {
+            "name": "membershipId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "sellerFee",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "buyerFee",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
       }
     ],
     "outputs": [],
@@ -3484,9 +3853,14 @@ export const abis = {
     "name": "send",
     "inputs": [
       {
-        "name": "hash",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "signature",
@@ -3605,7 +3979,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct TransactionFees",
+        "internalType": "struct IPayments.TransactionFees",
         "components": [
           {
             "name": "fromFee",
@@ -3620,7 +3994,7 @@ export const abis = {
           {
             "name": "serviceFee",
             "type": "tuple",
-            "internalType": "struct ServiceFee",
+            "internalType": "struct IPayments.ServiceFee",
             "components": [
               {
                 "name": "operation",
@@ -3642,7 +4016,7 @@ export const abis = {
           {
             "name": "fees",
             "type": "tuple[]",
-            "internalType": "struct Fee[]",
+            "internalType": "struct IPayments.Fee[]",
             "components": [
               {
                 "name": "name",
@@ -3690,7 +4064,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct ServiceFee",
+        "internalType": "struct IPayments.ServiceFee",
         "components": [
           {
             "name": "operation",
@@ -3735,6 +4109,19 @@ export const abis = {
       },
       {
         "name": "wallet",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateTreasuryAddress",
+    "inputs": [
+      {
+        "name": "newTreasuryAddress",
         "type": "address",
         "internalType": "address"
       }
@@ -3837,7 +4224,7 @@ export const abis = {
         "name": "fees",
         "type": "tuple",
         "indexed": false,
-        "internalType": "struct TransactionFees",
+        "internalType": "struct IPayments.TransactionFees",
         "components": [
           {
             "name": "fromFee",
@@ -3852,7 +4239,7 @@ export const abis = {
           {
             "name": "serviceFee",
             "type": "tuple",
-            "internalType": "struct ServiceFee",
+            "internalType": "struct IPayments.ServiceFee",
             "components": [
               {
                 "name": "operation",
@@ -3874,7 +4261,7 @@ export const abis = {
           {
             "name": "fees",
             "type": "tuple[]",
-            "internalType": "struct Fee[]",
+            "internalType": "struct IPayments.Fee[]",
             "components": [
               {
                 "name": "name",
@@ -3948,6 +4335,25 @@ export const abis = {
       },
       {
         "name": "buyerFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -4070,6 +4476,17 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "AddressInsufficientBalance",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "DuplicateFee",
     "inputs": [
       {
@@ -4134,7 +4551,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -4190,6 +4607,22 @@ export const abis = {
     "type": "error",
     "name": "InvalidInitialization",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -4333,6 +4766,22 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "TotalPercentageExceedsLimit",
     "inputs": []
   },
@@ -4392,9 +4841,14 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "hash",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "signature",
@@ -4402,14 +4856,24 @@ export const abis = {
         "internalType": "bytes"
       },
       {
+        "name": "directSaleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "saleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "isFiat",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
         "name": "erc20",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "salesIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
       }
     ],
     "outputs": [],
@@ -4479,6 +4943,19 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getDuration",
     "inputs": [
       {
@@ -4524,6 +5001,25 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getSale",
     "inputs": [
       {
@@ -4536,7 +5032,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct Sale",
+        "internalType": "struct ISales.Sale",
         "components": [
           {
             "name": "end",
@@ -4587,7 +5083,7 @@ export const abis = {
       {
         "name": "",
         "type": "tuple[]",
-        "internalType": "struct Sale[]",
+        "internalType": "struct ISales.Sale[]",
         "components": [
           {
             "name": "end",
@@ -4648,7 +5144,7 @@ export const abis = {
       {
         "name": "sales",
         "type": "tuple[]",
-        "internalType": "struct Sale[]",
+        "internalType": "struct ISales.Sale[]",
         "components": [
           {
             "name": "end",
@@ -4781,9 +5277,14 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "hash",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "signature",
@@ -4791,31 +5292,34 @@ export const abis = {
         "internalType": "bytes"
       },
       {
+        "name": "wrapperId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "directSaleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "isFiat",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expireType",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "erc20",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "saleInputs",
-        "type": "tuple[]",
-        "internalType": "struct SalesBase.ListInputs[]",
-        "components": [
-          {
-            "name": "price",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "wrapperId",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "durationId",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
       }
     ],
     "outputs": [],
@@ -4877,9 +5381,14 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "hash",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "signature",
@@ -4887,14 +5396,29 @@ export const abis = {
         "internalType": "bytes"
       },
       {
+        "name": "directSaleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "saleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "isFiat",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "expireType",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "erc20",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "salesIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
       }
     ],
     "outputs": [],
@@ -4937,8 +5461,8 @@ export const abis = {
     "inputs": [
       {
         "name": "scheduleIds",
-        "type": "uint8[]",
-        "internalType": "uint8[]"
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       },
       {
         "name": "daysOfWeek",
@@ -4994,9 +5518,14 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "hash",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
         "name": "signature",
@@ -5004,14 +5533,24 @@ export const abis = {
         "internalType": "bytes"
       },
       {
+        "name": "directSaleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "saleId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "isFiat",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
         "name": "erc20",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "salesIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
       }
     ],
     "outputs": [],
@@ -5028,16 +5567,16 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "salesIds",
-        "type": "uint256[]",
+        "name": "salesId",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint256[]"
+        "internalType": "uint256"
       },
       {
         "name": "fees",
-        "type": "tuple[]",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct TransactionFees[]",
+        "internalType": "struct IPayments.TransactionFees",
         "components": [
           {
             "name": "fromFee",
@@ -5052,7 +5591,7 @@ export const abis = {
           {
             "name": "serviceFee",
             "type": "tuple",
-            "internalType": "struct ServiceFee",
+            "internalType": "struct IPayments.ServiceFee",
             "components": [
               {
                 "name": "operation",
@@ -5074,7 +5613,7 @@ export const abis = {
           {
             "name": "fees",
             "type": "tuple[]",
-            "internalType": "struct Fee[]",
+            "internalType": "struct IPayments.Fee[]",
             "components": [
               {
                 "name": "name",
@@ -5141,16 +5680,16 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "salesIds",
-        "type": "uint256[]",
+        "name": "salesId",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint256[]"
+        "internalType": "uint256"
       },
       {
-        "name": "dates",
-        "type": "tuple[]",
+        "name": "date",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct Date[]",
+        "internalType": "struct ISales.Date",
         "components": [
           {
             "name": "expireListDate",
@@ -5165,10 +5704,10 @@ export const abis = {
         ]
       },
       {
-        "name": "serviceFees",
-        "type": "tuple[]",
+        "name": "fee",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct ServiceFee[]",
+        "internalType": "struct IPayments.ServiceFee",
         "components": [
           {
             "name": "operation",
@@ -5188,10 +5727,10 @@ export const abis = {
         ]
       },
       {
-        "name": "outputs",
-        "type": "tuple[]",
+        "name": "output",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct SalesBase.ListOutputs[]",
+        "internalType": "struct SalesBase.ListOutputs",
         "components": [
           {
             "name": "wrapperId",
@@ -5218,10 +5757,10 @@ export const abis = {
     "name": "ListingCancelled",
     "inputs": [
       {
-        "name": "salesIds",
-        "type": "uint256[]",
+        "name": "salesId",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint256[]"
+        "internalType": "uint256"
       },
       {
         "name": "seller",
@@ -5259,6 +5798,25 @@ export const abis = {
   },
   {
     "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Paused",
     "inputs": [
       {
@@ -5281,16 +5839,16 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "salesIds",
-        "type": "uint256[]",
+        "name": "salesId",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint256[]"
+        "internalType": "uint256"
       },
       {
-        "name": "dates",
-        "type": "tuple[]",
+        "name": "date",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct Date[]",
+        "internalType": "struct ISales.Date",
         "components": [
           {
             "name": "expireListDate",
@@ -5305,10 +5863,10 @@ export const abis = {
         ]
       },
       {
-        "name": "serviceFees",
-        "type": "tuple[]",
+        "name": "fee",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct ServiceFee[]",
+        "internalType": "struct IPayments.ServiceFee",
         "components": [
           {
             "name": "operation",
@@ -5335,10 +5893,10 @@ export const abis = {
     "name": "RenewCancelled",
     "inputs": [
       {
-        "name": "salesIds",
-        "type": "uint256[]",
+        "name": "salesId",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint256[]"
+        "internalType": "uint256"
       },
       {
         "name": "seller",
@@ -5449,16 +6007,16 @@ export const abis = {
         "internalType": "address"
       },
       {
-        "name": "salesIds",
-        "type": "uint256[]",
+        "name": "salesId",
+        "type": "uint256",
         "indexed": false,
-        "internalType": "uint256[]"
+        "internalType": "uint256"
       },
       {
-        "name": "serviceFees",
-        "type": "tuple[]",
+        "name": "fee",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "struct ServiceFee[]",
+        "internalType": "struct IPayments.ServiceFee",
         "components": [
           {
             "name": "operation",
@@ -5546,7 +6104,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -5593,6 +6151,22 @@ export const abis = {
     "inputs": [
       {
         "name": "delay",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -5790,6 +6364,22 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UUPSUnauthorizedCallContext",
     "inputs": []
   },
@@ -5831,6 +6421,19 @@ export const abis = {
   },
   {
     "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getMembership",
     "inputs": [
       {
@@ -5863,6 +6466,25 @@ export const abis = {
         "name": "",
         "type": "uint256[]",
         "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -6060,6 +6682,25 @@ export const abis = {
   },
   {
     "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Paused",
     "inputs": [
       {
@@ -6149,7 +6790,7 @@ export const abis = {
   },
   {
     "type": "error",
-    "name": "FailedCall",
+    "name": "FailedInnerCall",
     "inputs": []
   },
   {
@@ -6194,6 +6835,22 @@ export const abis = {
     "type": "error",
     "name": "InvalidMembershipOperation",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
   },
   {
     "type": "error",
@@ -6294,6 +6951,22 @@ export const abis = {
   },
   {
     "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UUPSUnauthorizedCallContext",
     "inputs": []
   },
@@ -6319,22 +6992,22 @@ export const abis = {
 // Contract addresses
 export const addresses = {
   mainnet: {
-    Roles: '0x0000000000000000000000000000000000000000' as Address,
-    Brands: '0x0000000000000000000000000000000000000000' as Address,
-    Wrappers: '0x0000000000000000000000000000000000000000' as Address,
-    Whitelist: '0x0000000000000000000000000000000000000000' as Address,
-    Payments: '0x0000000000000000000000000000000000000000' as Address,
-    Sales: '0x0000000000000000000000000000000000000000' as Address,
-    Memberships: '0x0000000000000000000000000000000000000000' as Address,
+    Roles: '0x69626e51ffb826bf208a1cafd0b98655bba5895c' as Address,
+    Brands: '0x45ae92acbd248508a1814bf148ed618a1f7d6029' as Address,
+    Wrappers: '0x8284f609806e938b8b65d9e0fcddedbedb0b0dce' as Address,
+    Whitelist: '0x3d5e2b9359513f94d73e4a9d7a5d37e01759065c' as Address,
+    Payments: '0xd2c9a004e1271a8c2c0ba08677112c85f6581df4' as Address,
+    Sales: '0x9ef6d7de627db2d885cb3263b387b9979964825c' as Address,
+    Memberships: '0x2fb13361dd08a75ab96276c3d65ea5ad9a5dd1e0' as Address,
   },
   testnet: {
-    Roles: '0x6A1DE135Bf10b9639AF08da4C037dDa4D61a89C3' as Address,
-    Brands: '0xBe166CB8d2d390ACc42C232659c44fF13B8f37e1' as Address,
-    Wrappers: '0x887BDFFd2197b9066Fe24AAdd898C4F20F7e3779' as Address,
-    Whitelist: '0x73f18707e6c29F8D71d358689FEfd0A4AdeA4Dc2' as Address,
-    Payments: '0xa008A811982E1b075F928F72dfB8Ba47BeedeF73' as Address,
-    Sales: '0x741037F08623643a4d857dbc85ea6DDf6F6558fC' as Address,
-    Memberships: '0x29Fb9bc3500B24138Dd8b5db31e5a4B120236fe0' as Address,
+    Roles: '0x593d561cf601e22e5de228dd83b2baff9c53feb8' as Address,
+    Brands: '0x8727f012b11cff8a997c565f39d71359a529a316' as Address,
+    Wrappers: '0xf3cdcdc5ba6b0ff9fd4ead75b18bbf66ec500d1a' as Address,
+    Whitelist: '0x868b9b43e62117b265fb830d26dbb95a489b2b62' as Address,
+    Payments: '0x83ae7be176d0ce250fdf87e5f387582ca9a2a101' as Address,
+    Sales: '0x3c1c62f8da3eb2d5931a58ee514db6de19c2038d' as Address,
+    Memberships: '0x2932ac04e28d192a994bcf1cafa9cccc261383ac' as Address,
   }
 };
 

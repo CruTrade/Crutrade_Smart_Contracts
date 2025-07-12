@@ -1,6 +1,6 @@
 {
-  "name": "crutrade-contracts",
-  "version": "1.0.1",
+  "name": "@crutrade/contracts",
+  "version": "1.1.1",
   "description": "CruTrade Smart Contracts - ABIs and Addresses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
