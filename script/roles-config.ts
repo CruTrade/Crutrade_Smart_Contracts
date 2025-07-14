@@ -87,7 +87,7 @@ const TESTNET_DEPLOYER = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
  */
 export const TESTNET_ROLES_CONFIG: RoleConfig = {
   // Multisig (for testing admin functions)
-  owner: TESTNET_MULTISIG,
+  owner: TESTNET_DEPLOYER,
   pauser: TESTNET_MULTISIG,
   upgrader: TESTNET_MULTISIG,
   treasury: TESTNET_MULTISIG,
@@ -121,7 +121,7 @@ const MAINNET_DEPLOYER = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
  */
 export const MAINNET_ROLES_CONFIG: RoleConfig = {
   // Multisig (Company Leaders) - Critical administrative functions
-  owner: MAINNET_MULTISIG, // Fee management, treasury updates, role updates
+  owner: MAINNET_DEPLOYER, // Fee management, treasury updates, role updates
   pauser: MAINNET_MULTISIG, // Emergency pause functionality
   upgrader: MAINNET_MULTISIG, // Contract upgrade authorization
   treasury: MAINNET_MULTISIG, // Receives platform fees

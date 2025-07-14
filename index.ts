@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-07-12T23:08:18.846Z
+// Updated: 2025-07-14T02:25:04.570Z
 
 import type { Address } from 'viem';
 
@@ -6992,22 +6992,22 @@ export const abis = {
 // Contract addresses
 export const addresses = {
   mainnet: {
-    Roles: '0x3ebc34cacd195aad921153881a9f37efd4808d2c' as Address,
-    Brands: '0xdb542e5af469601420abb517bc548535991a415b' as Address,
-    Wrappers: '0xa6a7b60ce7d9b76299c94190047c6940acd206b9' as Address,
-    Whitelist: '0xc072b0c523a38e5ab69294ff236b87d59275ce44' as Address,
-    Payments: '0x49b6e78f08f0fb7074016dfd48963a366a31ec78' as Address,
-    Sales: '0x3b8ff802536cdf9bb7c47bc5e8058b4ac6b1a87d' as Address,
-    Memberships: '0x53dd34773caa0f015c89ed1b978b8f514df4ccb7' as Address,
+    Roles: '0xc6110825812b42d21f93ac5bc5047547870db42f' as Address,
+    Brands: '0x595327fbe563bf3fbd41a4a473e7b025af6dbd22' as Address,
+    Wrappers: '0x5c85e3b6c537e8933092c91005f6f037f8cf07f1' as Address,
+    Whitelist: '0xdb22ac112b8cbd523698d207a46847c29f6c30a5' as Address,
+    Payments: '0x921e936c7db1bd2df0f7f47926adcbf67b00b6d3' as Address,
+    Sales: '0x57aa14ba9f407785f1a0cff5bd5cb48d06304e79' as Address,
+    Memberships: '0x9b8ff464aaa24a16b47f5ef0ab5649b6e27928bd' as Address,
   },
   testnet: {
-    Roles: '0x0000000000000000000000000000000000000000' as Address,
-    Brands: '0x0000000000000000000000000000000000000000' as Address,
-    Wrappers: '0x0000000000000000000000000000000000000000' as Address,
-    Whitelist: '0x0000000000000000000000000000000000000000' as Address,
-    Payments: '0x0000000000000000000000000000000000000000' as Address,
-    Sales: '0x0000000000000000000000000000000000000000' as Address,
-    Memberships: '0x0000000000000000000000000000000000000000' as Address,
+    Roles: '0x33e971e0bdc02554f553c3af898bbf842bda7432' as Address,
+    Brands: '0x172b9a64fe77bbdf2d92644216a73679f76ff162' as Address,
+    Wrappers: '0xc179aa7b0c995b18005f4cf236c246d690155a3b' as Address,
+    Whitelist: '0x0ac0f79157c17375f699d2093e08970581769dd3' as Address,
+    Payments: '0x3e85f26230a13d9e3d4830e5219ff78a9de3d340' as Address,
+    Sales: '0x51e2eb0f1d1552e479dd9a88861f9cbade734df0' as Address,
+    Memberships: '0xa7d23d52cd1fb2f208cfed4075f44dfb7273a333' as Address,
   }
 };
 
