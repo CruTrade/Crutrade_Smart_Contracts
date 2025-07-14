@@ -106,6 +106,14 @@ console.log("✅ Payments configuration validated successfully!");
 // Generate environment variables
 const rolesEnvVars = generateEnvVars(rolesConfig);
 
+// Prepare operational addresses array (now up to 4)
+const operationalAddresses = [
+  rolesConfig.operational1,
+  rolesConfig.operational2,
+  rolesConfig.operational3,
+  rolesConfig.operational4,
+].filter(Boolean); // Remove undefined if any
+
 // Compose env for forge with both configurations
 const envVars = {
   ...env,

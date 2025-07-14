@@ -32,6 +32,9 @@ contract CrutradeDeploy is Script {
   address private constant OPERATIONAL_1 = 0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC;
   address private constant OPERATIONAL_2 = 0xe812BeeF1F7A62ed142835Ec2622B71AeA858085;
 
+  address private constant OPERATIONAL_3 = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+  address private constant OPERATIONAL_4 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+
   address private constant ANVIL_ADDRESS_1 = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
   address private constant ANVIL_ADDRESS_2 = 0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC;
   address private constant ANVIL_ADDRESS_3 = 0xe812BeeF1F7A62ed142835Ec2622B71AeA858085;
@@ -119,13 +122,16 @@ contract CrutradeDeploy is Script {
     // Step 1: Deploy all implementation contracts
     _deployImplementations();
 
-    // Step 2: Deploy all other contracts first (brands includes first brand registration)
-    _deployOtherContracts();
+    // Step 2: Deploy Roles contract first with minimal configuration
+    _deployRolesWithMinimalSetup();
 
-    // Step 3: Deploy Roles last with everything configured
-    _deployRolesWithFullSetup();
+    // Step 3: Deploy all other contracts with the correct roles address
+    _deployOtherContractsWithCorrectRoles();
 
-    // Step 4: Save deployment information
+    // Step 4: Grant contract-specific roles to the deployed contracts
+    _grantContractRoles();
+
+    // Step 5: Save deployment information
     // _saveDeployment(); // Commented out - using Foundry's broadcast instead
 
     console.log('Deploy complete - ecosystem ready!');
@@ -162,31 +168,28 @@ contract CrutradeDeploy is Script {
   }
 
   /**
-   * @notice Deploys all contracts except Roles with temporary configuration
-   * @dev Uses dummy roles address that will be updated when Roles is deployed
+   * @notice Deploys all contracts except Roles with the correct roles address
+   * @dev Uses the actual roles address instead of a dummy address
    */
-  function _deployOtherContracts() private {
-    // Temporary roles address for initialization
-    address dummyRoles = address(0x1);
-
+  function _deployOtherContractsWithCorrectRoles() private {
     // Get owner from environment for Brands initialization
     address owner = vm.envAddress("OWNER");
 
-    // Deploy Brands with automatic first brand registration for admin
+    // Deploy Brands with correct roles address and automatic first brand registration for admin
     brandsProxy = new ERC1967Proxy(
       address(brandsImpl),
-      abi.encodeCall(brandsImpl.initialize, (dummyRoles, owner))
+      abi.encodeCall(brandsImpl.initialize, (address(rolesProxy), owner))
     );
 
-    // Deploy other contracts with dummy roles
+    // Deploy other contracts with correct roles address
     wrappersProxy = new ERC1967Proxy(
       address(wrappersImpl),
-      abi.encodeCall(wrappersImpl.initialize, (dummyRoles))
+      abi.encodeCall(wrappersImpl.initialize, (address(rolesProxy)))
     );
 
     whitelistProxy = new ERC1967Proxy(
       address(whitelistImpl),
-      abi.encodeCall(whitelistImpl.initialize, (dummyRoles))
+      abi.encodeCall(whitelistImpl.initialize, (address(rolesProxy)))
     );
 
     // Get payments configuration from environment variables
@@ -195,122 +198,111 @@ contract CrutradeDeploy is Script {
     string memory membershipFeesJson = vm.envString("MEMBERSHIP_FEES");
 
     // Parse membership fees from JSON (simplified - in production you might want a more robust parser)
-    // For now, we'll use a simple approach with hardcoded parsing
-    // In a real implementation, you might want to use a library or more sophisticated parsing
-    IPayments.MembershipFeeConfig[] memory initialMembershipFees = _parseMembershipFees(membershipFeesJson);
+    IPayments.MembershipFeeConfig[] memory membershipFees = _parseMembershipFees(membershipFeesJson);
 
-    console.log('Payments configuration:');
-    console.log('  Treasury Address:', treasuryAddress);
-    console.log('  Fiat Fee Percentage:', fiatFeePercentage);
-    console.log('  Membership Fees Count:', initialMembershipFees.length);
-
+    // Deploy Payments with correct roles address
     paymentsProxy = new ERC1967Proxy(
       address(paymentsImpl),
-      abi.encodeCall(paymentsImpl.initialize, (
-        dummyRoles,
-        treasuryAddress,
-        fiatFeePercentage,
-        initialMembershipFees
-      ))
+      abi.encodeCall(paymentsImpl.initialize, (address(rolesProxy), treasuryAddress, fiatFeePercentage, membershipFees))
     );
 
+    // Deploy Sales with correct roles address
     salesProxy = new ERC1967Proxy(
       address(salesImpl),
-      abi.encodeCall(salesImpl.initialize, (dummyRoles))
+      abi.encodeCall(salesImpl.initialize, (address(rolesProxy)))
     );
 
+    // Deploy Memberships with correct roles address
     membershipsProxy = new ERC1967Proxy(
       address(membershipsImpl),
-      abi.encodeCall(membershipsImpl.initialize, (dummyRoles))
+      abi.encodeCall(membershipsImpl.initialize, (address(rolesProxy)))
     );
 
-    console.log('All other contracts deployed (first brand registered)');
+    console.log('All other contracts deployed with correct roles address (first brand registered)');
   }
 
   /**
-   * @notice Deploys Roles contract with complete ecosystem configuration
-   * @dev This is the final step that configures all roles, delegates, and payments
+   * @notice Deploys Roles contract with minimal configuration
+   * @dev This follows the test pattern - deploy with minimal config, then configure separately
    */
-  function _deployRolesWithFullSetup() private {
+  function _deployRolesWithMinimalSetup() private {
     // Get roles configuration from environment variables
     address owner = vm.envAddress("OWNER");
     address operational1 = vm.envAddress("OPERATIONAL_1");
     address operational2 = vm.envAddress("OPERATIONAL_2");
-    address treasury = vm.envAddress("TREASURY");
-    address fiat = vm.envAddress("FIAT");
-    address pauser = vm.envAddress("PAUSER");
-    address upgrader = vm.envAddress("UPGRADER");
+    address operational3 = vm.envAddress("OPERATIONAL_3");
+    address operational4 = vm.envAddress("OPERATIONAL_4");
 
     console.log('Roles configuration:');
     console.log('  Owner:', owner);
-    console.log('  Operational 1:', operational1);
-    console.log('  Operational 2:', operational2);
-    console.log('  Treasury:', treasury);
-    console.log('  Fiat:', fiat);
-    console.log('  Pauser:', pauser);
-    console.log('  Upgrader:', upgrader);
-
-    // Determine USDT address based on chain
-    address usdtAddress = block.chainid == 43113
-      ? 0xd495C61A12f0E67E0F293E9DAC4772Acb457d287  // Fuji testnet
-      : 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E; // Avalanche mainnet
+    console.log('  Operational 1 (Server Signing Key):', operational1);
+    console.log('  Operational 2 (OpenZeppelin Relayer 1):', operational2);
+    console.log('  Operational 3 (OpenZeppelin Relayer 2):', operational3);
+    console.log('  Operational 4 (Deployer):', operational4);
+    // console.log('  Treasury:', treasury);
+    // console.log('  Fiat:', fiat);
+    // console.log('  Pauser:', pauser);
+    // console.log('  Upgrader:', upgrader);
 
     // Prepare operational addresses array
-    address[] memory operationalAddresses = new address[](2);
-    operationalAddresses[0] = operational1;
-    operationalAddresses[1] = operational2;
+    address[] memory operationalAddresses = new address[](4);
+    operationalAddresses[0] = operational1; // Server signing key (unfunded)
+    operationalAddresses[1] = operational2; // OpenZeppelin relayer 1 (funded)
+    operationalAddresses[2] = operational3; // OpenZeppelin relayer 2 (funded)
+    operationalAddresses[3] = operational4; // Deployer (operational4)
 
-    // Prepare contract addresses in specific order
-    address[] memory contractAddresses = new address[](6);
-    contractAddresses[0] = address(brandsProxy);      // index 0
-    contractAddresses[1] = address(wrappersProxy);    // index 1
-    contractAddresses[2] = address(whitelistProxy);   // index 2
-    contractAddresses[3] = address(paymentsProxy);    // index 3
-    contractAddresses[4] = address(salesProxy);       // index 4
-    contractAddresses[5] = address(membershipsProxy); // index 5
+    // User roles to grant to admin (following test pattern)
+    bytes32[] memory userRoles = new bytes32[](4);
+    userRoles[0] = keccak256('OWNER');
+    userRoles[1] = keccak256('OPERATIONAL');
+    userRoles[2] = keccak256('TREASURY');
+    userRoles[3] = keccak256('FIAT');
 
-    // User roles to grant to admin (multisig)
-    bytes32[] memory userRoles = new bytes32[](5);
-    userRoles[0] = keccak256('FIAT');      // Financial operations
-    userRoles[1] = keccak256('OWNER');     // Ownership functions
-    userRoles[2] = keccak256('PAUSER');    // Emergency pause
-    userRoles[3] = keccak256('UPGRADER');  // Contract upgrades
-    userRoles[4] = keccak256('TREASURY');  // Treasury management
-
-    // Contract-specific roles (matches contractAddresses order)
-    bytes32[] memory contractRoles = new bytes32[](6);
-    contractRoles[0] = keccak256('BRANDS');      // Brands contract role
-    contractRoles[1] = keccak256('WRAPPERS');    // Wrappers contract role
-    contractRoles[2] = keccak256('WHITELIST');   // Whitelist contract role
-    contractRoles[3] = keccak256('PAYMENTS');    // Payments contract role
-    contractRoles[4] = keccak256('SALES');       // Sales contract role
-    contractRoles[5] = keccak256('MEMBERSHIPS'); // Memberships contract role
-
-    // Indices of contracts that need delegate roles
-    uint256[] memory delegateIndices = new uint256[](3);
-    delegateIndices[0] = 1; // wrappers (index 1)
-    delegateIndices[1] = 3; // payments (index 3)
-    delegateIndices[2] = 4; // sales (index 4)
-
-    // Deploy Roles with complete configuration
+    // Deploy Roles with minimal configuration (empty contract addresses for now)
     rolesProxy = new ERC1967Proxy(
       address(rolesImpl),
       abi.encodeCall(rolesImpl.initialize, (
         owner,
-        usdtAddress,
+        usdcAddress,
         operationalAddresses,
-        contractAddresses,
+        new address[](0), // contractAddresses - empty for now
         userRoles,
-        contractRoles,
-        delegateIndices
+        new bytes32[](0), // contractRoles - empty for now
+        new uint256[](0)  // delegateIndices - empty for now
       ))
     );
 
-    console.log('Roles deployed with complete ecosystem setup:');
-    console.log('   - All user roles assigned to multisig');
-    console.log('   - All contract roles assigned');
-    console.log('   - All delegate roles granted');
-    console.log('   - USDT payment configured');
+    console.log('Roles deployed with minimal setup:');
+    console.log('   - User roles assigned to admin');
+    console.log('   - Operational roles assigned');
+    console.log('   - Contract roles will be granted after deployment');
+  }
+
+  /**
+   * @notice Grants contract-specific roles to the deployed contracts
+   * @dev This function is called after all contracts are deployed to ensure correct role delegation
+   */
+  function _grantContractRoles() private {
+    console.log('Granting contract-specific roles...');
+
+    // Grant contract-specific roles to contracts directly (deployer is admin)
+    Roles(address(rolesProxy)).grantRole(keccak256('WHITELIST'), address(whitelistProxy));
+    console.log('   - WHITELIST role granted to Whitelist contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('WRAPPERS'), address(wrappersProxy));
+    console.log('   - WRAPPERS role granted to Wrappers contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('BRANDS'), address(brandsProxy));
+    console.log('   - BRANDS role granted to Brands contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('PAYMENTS'), address(paymentsProxy));
+    console.log('   - PAYMENTS role granted to Payments contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('SALES'), address(salesProxy));
+    console.log('   - SALES role granted to Sales contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('MEMBERSHIPS'), address(membershipsProxy));
+    console.log('   - MEMBERSHIPS role granted to Memberships contract');
   }
 
   /**
@@ -338,49 +330,4 @@ contract CrutradeDeploy is Script {
     return fees;
   }
 
-  /**
-   * @notice Saves deployment information to JSON files
-   * @dev Creates both latest.json and timestamped deployment files
-   * COMMENTED OUT - Using Foundry's broadcast functionality instead
-   */
-  /*
-  function _saveDeployment() private {
-    // Determine network folder
-    string memory nodeEnv = vm.envOr('NODE_ENV', string('dev'));
-    string memory folder = keccak256(abi.encodePacked(nodeEnv)) == keccak256(abi.encodePacked('dev')) ? 'testnet' : 'mainnet';
-    string memory dirPath = string.concat('./deployments/', folder);
-
-    // Create deployment directory
-    string[] memory mkdirCmd = new string[](3);
-    mkdirCmd[0] = 'mkdir';
-    mkdirCmd[1] = '-p';
-    mkdirCmd[2] = dirPath;
-    vm.ffi(mkdirCmd);
-
-    // Build deployment JSON
-    string memory json = '{}';
-    json = vm.serializeUint('deployment', 'chainId', block.chainid);
-    json = vm.serializeUint('deployment', 'timestamp', block.timestamp);
-
-    // Proxy contract addresses
-    json = vm.serializeAddress('deployment', 'roles', address(rolesProxy));
-    json = vm.serializeAddress('deployment', 'brands', address(brandsProxy));
-    json = vm.serializeAddress('deployment', 'wrappers', address(wrappersProxy));
-    json = vm.serializeAddress('deployment', 'whitelist', address(whitelistProxy));
-    json = vm.serializeAddress('deployment', 'payments', address(paymentsProxy));
-    json = vm.serializeAddress('deployment', 'sales', address(salesProxy));
-    json = vm.serializeAddress('deployment', 'memberships', address(membershipsProxy));
-
-    // Configuration metadata
-    json = vm.serializeAddress('deployment', 'defaultAdmin', DEFAULT_ADMIN);
-    json = vm.serializeBool('deployment', 'fullyConfigured', true);
-    json = vm.serializeBool('deployment', 'firstBrandRegistered', true);
-
-    // Save deployment files
-    vm.writeJson(json, string.concat(dirPath, '/latest.json'));
-    vm.writeJson(json, string.concat(dirPath, '/', vm.toString(block.timestamp), '.json'));
-
-    console.log('Deployment information saved to:', folder);
-  }
-  */
 }

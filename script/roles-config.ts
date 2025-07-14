@@ -8,8 +8,10 @@
 export interface RoleConfig {
   // Core administrative roles
   owner: string;
-  operational1: string;
-  operational2: string;
+  operational1: string; // Server signing key (unfunded)
+  operational2: string; // OpenZeppelin relayer 1 (funded)
+  operational3?: string; // OpenZeppelin relayer 2 (funded) - optional
+  operational4?: string; // Deployer or extra operational (optional)
 
   // Financial roles
   treasury: string;
@@ -45,55 +47,90 @@ export interface NetworkConfig {
   roles: RoleConfig;
 }
 
+export const ANVIL_1_DEPLOYER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+export const ANVIL_2_MULTISIG = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+export const ANVIL_3_OPERATIONAL = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
+export const ANVIL_4_OPERATIONAL = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+export const ANVIL_5_SIGNER = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
+
 /**
  * @notice Default configuration for local development
  */
 export const LOCAL_ROLES_CONFIG: RoleConfig = {
-  owner: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  operational1: "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC",
-  operational2: "0xe812BeeF1F7A62ed142835Ec2622B71AeA858085",
-  treasury: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
-  fiat: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
-  pauser: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
-  upgrader: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
+  owner: ANVIL_1_DEPLOYER,
+  operational1: ANVIL_1_DEPLOYER,
+  operational2: ANVIL_3_OPERATIONAL,
+  operational3: ANVIL_4_OPERATIONAL,
+  operational4: ANVIL_5_SIGNER, // Deployer (same as owner for local)
+  treasury: ANVIL_2_MULTISIG,
+  fiat: ANVIL_3_OPERATIONAL,
+  pauser: ANVIL_2_MULTISIG,
+  upgrader: ANVIL_2_MULTISIG,
 };
 
-const TESTNET_OWNER = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
-const TESTNET_HOT_WALLET_1 = "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC";
-const TESTNET_HOT_WALLET_2 = "0xe812BeeF1F7A62ed142835Ec2622B71AeA858085";
+// TODO: Replace these with your actual testnet addresses for testing gasless functionality
+const TESTNET_MULTISIG = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
+const TESTNET_SERVER_SIGNING_KEY = "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC";
+const TESTNET_OPENZEPPELIN_RELAYER_1 =
+  "0xe812BeeF1F7A62ed142835Ec2622B71AeA858085";
+const TESTNET_OPENZEPPELIN_RELAYER_2 =
+  "0x742d35Cc6234C10B2C13A1b3B8F5D202F69B6F03"; // Add your second relayer
+const TESTNET_DEPLOYER = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
 
 /**
- * @notice Configuration for testnet deployment
- * @dev Uses environment variables for sensitive addresses
+ * @notice Configuration for testnet deployment - Gasless Marketplace Testing
+ * @dev Mirrors mainnet setup for testing gasless operations
  */
 export const TESTNET_ROLES_CONFIG: RoleConfig = {
-  owner: TESTNET_OWNER,
-  operational1: TESTNET_HOT_WALLET_1,
-  operational2: TESTNET_HOT_WALLET_2,
-  treasury: TESTNET_OWNER,
-  fiat: TESTNET_HOT_WALLET_1,
-  pauser: TESTNET_OWNER,
-  upgrader: TESTNET_OWNER,
+  // Multisig (for testing admin functions)
+  owner: TESTNET_MULTISIG,
+  pauser: TESTNET_MULTISIG,
+  upgrader: TESTNET_MULTISIG,
+  treasury: TESTNET_MULTISIG,
+
+  // Server signing key (unfunded, for signing)
+  operational1: TESTNET_SERVER_SIGNING_KEY,
+
+  // OpenZeppelin relayers (funded with testnet AVAX)
+  operational2: TESTNET_OPENZEPPELIN_RELAYER_1,
+  operational3: TESTNET_OPENZEPPELIN_RELAYER_2,
+  operational4: TESTNET_DEPLOYER,
+
+  // FIAT role
+  fiat: TESTNET_SERVER_SIGNING_KEY,
 };
 
+// TODO: Replace these with your actual addresses
 export const MAINNET_MULTISIG = "0xE8c2E3Fb20810b5b65361A54e51b8B3F30e545E9";
-export const MAINNET_HOT_WALLET_1 =
+export const MAINNET_SERVER_SIGNING_KEY =
+  "0xc4adA1C98770480655EFFE770813556880ff370e";
+export const MAINNET_OPENZEPPELIN_RELAYER_1 =
   "0xd67E626Cc087477c80Aa48A68a304091537E9A56";
-export const MAINNET_HOT_WALLET_2 =
+export const MAINNET_OPENZEPPELIN_RELAYER_2 =
   "0x4E19938Cc3a6cF0d4F0f1394813bb4a9aBa4b912";
+const MAINNET_DEPLOYER = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
 
 /**
- * @notice Configuration for mainnet deployment
- * @dev Uses environment variables for all addresses - MUST be set before deployment
+ * @notice Configuration for mainnet deployment - Gasless Marketplace Setup
+ * @dev Configured for gasless operations with OpenZeppelin relayers
  */
 export const MAINNET_ROLES_CONFIG: RoleConfig = {
-  owner: MAINNET_MULTISIG,
-  operational1: MAINNET_HOT_WALLET_1,
-  operational2: MAINNET_HOT_WALLET_2,
-  treasury: MAINNET_MULTISIG,
-  fiat: MAINNET_HOT_WALLET_2,
-  pauser: MAINNET_MULTISIG,
-  upgrader: MAINNET_MULTISIG,
+  // Multisig (Company Leaders) - Critical administrative functions
+  owner: MAINNET_MULTISIG, // Fee management, treasury updates, role updates
+  pauser: MAINNET_MULTISIG, // Emergency pause functionality
+  upgrader: MAINNET_MULTISIG, // Contract upgrade authorization
+  treasury: MAINNET_MULTISIG, // Receives platform fees
+
+  // Server Signing Key (Unfunded) - Signs gasless transactions
+  operational1: MAINNET_SERVER_SIGNING_KEY,
+
+  // OpenZeppelin Relayers (Funded with AVAX) - Submit transactions
+  operational2: MAINNET_OPENZEPPELIN_RELAYER_1,
+  operational3: MAINNET_OPENZEPPELIN_RELAYER_2,
+  operational4: MAINNET_DEPLOYER,
+
+  // FIAT role for off-chain payment settlements
+  fiat: MAINNET_OPENZEPPELIN_RELAYER_1,
 };
 
 /**
@@ -136,6 +173,9 @@ export function validateRolesConfig(
     "upgrader",
   ];
 
+  // Optional roles (check if present)
+  const optionalRoles = ["operational3"];
+
   for (const role of requiredRoles) {
     const address = config[role as keyof RoleConfig] as string;
     if (!address || address === "0x0000000000000000000000000000000000000000") {
@@ -160,14 +200,26 @@ export function validateRolesConfig(
     }
   }
 
+  // Validate optional roles if present
+  for (const role of optionalRoles) {
+    const address = config[role as keyof RoleConfig] as string;
+    if (address && !isValidAddress(address)) {
+      console.error(`❌ Invalid ${role} address: ${address}`);
+      return false;
+    }
+  }
+
   // Check for duplicate addresses (security risk)
   const addresses = new Set<string>();
-  for (const role of requiredRoles) {
+  const allRoles = [...requiredRoles, ...optionalRoles];
+  for (const role of allRoles) {
     const address = config[role as keyof RoleConfig] as string;
-    if (addresses.has(address.toLowerCase())) {
-      console.warn(`⚠️  Duplicate address found for role: ${role}`);
+    if (address && address !== "0x0000000000000000000000000000000000000000") {
+      if (addresses.has(address.toLowerCase())) {
+        console.warn(`⚠️  Duplicate address found for role: ${role}`);
+      }
+      addresses.add(address.toLowerCase());
     }
-    addresses.add(address.toLowerCase());
   }
 
   return true;
@@ -189,8 +241,14 @@ export function printRolesConfig(
   // Core roles
   console.log("🔑 Core Administrative Roles:");
   console.log(`  Owner: ${config.owner}`);
-  console.log(`  Operational 1: ${config.operational1}`);
-  console.log(`  Operational 2: ${config.operational2}`);
+  console.log(`  Operational 1 (Server Signing): ${config.operational1}`);
+  console.log(`  Operational 2 (OZ Relayer 1): ${config.operational2}`);
+  if (config.operational3) {
+    console.log(`  Operational 3 (OZ Relayer 2): ${config.operational3}`);
+  }
+  if (config.operational4) {
+    console.log(`  Operational 4 (Deployer): ${config.operational4}`);
+  }
   console.log("");
 
   // Financial roles
@@ -328,6 +386,8 @@ export function generateEnvVars(config: RoleConfig): Record<string, string> {
     OWNER: config.owner,
     OPERATIONAL_1: config.operational1,
     OPERATIONAL_2: config.operational2,
+    ...(config.operational3 && { OPERATIONAL_3: config.operational3 }),
+    ...(config.operational4 && { OPERATIONAL_4: config.operational4 }),
     TREASURY: config.treasury,
     FIAT: config.fiat,
     PAUSER: config.pauser,
@@ -336,6 +396,7 @@ export function generateEnvVars(config: RoleConfig): Record<string, string> {
     ...(config.governance && { GOVERNANCE: config.governance }),
     ...(config.partner1 && { PARTNER_1: config.partner1 }),
     ...(config.partner2 && { PARTNER_2: config.partner2 }),
+    // Additional relayer addresses for gasless marketplace
     ...(config.lister && { LISTER: config.lister }),
     ...(config.buyer && { BUYER: config.buyer }),
     ...(config.renewer && { RENEWER: config.renewer }),

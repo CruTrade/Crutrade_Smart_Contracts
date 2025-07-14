@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-07-12T02:38:57.633Z
+// Updated: 2025-07-12T23:08:18.846Z
 
 import type { Address } from 'viem';
 
@@ -6992,22 +6992,22 @@ export const abis = {
 // Contract addresses
 export const addresses = {
   mainnet: {
-    Roles: '0x69626e51ffb826bf208a1cafd0b98655bba5895c' as Address,
-    Brands: '0x45ae92acbd248508a1814bf148ed618a1f7d6029' as Address,
-    Wrappers: '0x8284f609806e938b8b65d9e0fcddedbedb0b0dce' as Address,
-    Whitelist: '0x3d5e2b9359513f94d73e4a9d7a5d37e01759065c' as Address,
-    Payments: '0xd2c9a004e1271a8c2c0ba08677112c85f6581df4' as Address,
-    Sales: '0x9ef6d7de627db2d885cb3263b387b9979964825c' as Address,
-    Memberships: '0x2fb13361dd08a75ab96276c3d65ea5ad9a5dd1e0' as Address,
+    Roles: '0x3ebc34cacd195aad921153881a9f37efd4808d2c' as Address,
+    Brands: '0xdb542e5af469601420abb517bc548535991a415b' as Address,
+    Wrappers: '0xa6a7b60ce7d9b76299c94190047c6940acd206b9' as Address,
+    Whitelist: '0xc072b0c523a38e5ab69294ff236b87d59275ce44' as Address,
+    Payments: '0x49b6e78f08f0fb7074016dfd48963a366a31ec78' as Address,
+    Sales: '0x3b8ff802536cdf9bb7c47bc5e8058b4ac6b1a87d' as Address,
+    Memberships: '0x53dd34773caa0f015c89ed1b978b8f514df4ccb7' as Address,
   },
   testnet: {
-    Roles: '0x593d561cf601e22e5de228dd83b2baff9c53feb8' as Address,
-    Brands: '0x8727f012b11cff8a997c565f39d71359a529a316' as Address,
-    Wrappers: '0xf3cdcdc5ba6b0ff9fd4ead75b18bbf66ec500d1a' as Address,
-    Whitelist: '0x868b9b43e62117b265fb830d26dbb95a489b2b62' as Address,
-    Payments: '0x83ae7be176d0ce250fdf87e5f387582ca9a2a101' as Address,
-    Sales: '0x3c1c62f8da3eb2d5931a58ee514db6de19c2038d' as Address,
-    Memberships: '0x2932ac04e28d192a994bcf1cafa9cccc261383ac' as Address,
+    Roles: '0x0000000000000000000000000000000000000000' as Address,
+    Brands: '0x0000000000000000000000000000000000000000' as Address,
+    Wrappers: '0x0000000000000000000000000000000000000000' as Address,
+    Whitelist: '0x0000000000000000000000000000000000000000' as Address,
+    Payments: '0x0000000000000000000000000000000000000000' as Address,
+    Sales: '0x0000000000000000000000000000000000000000' as Address,
+    Memberships: '0x0000000000000000000000000000000000000000' as Address,
   }
 };
 
