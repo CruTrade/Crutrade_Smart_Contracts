@@ -86,36 +86,41 @@ class DeploymentAddressExtractor {
     );
 
     const addresses: Record<string, string> = {};
+    const proxyAddresses: string[] = [];
 
+    // First pass: collect all ERC1967Proxy addresses in order
     for (const tx of broadcastData.transactions) {
-      if (tx.contractAddress && tx.contractName) {
-        // Map contract names to our expected keys
-        const key = this.mapContractName(tx.contractName);
-        if (key) {
-          addresses[key] = tx.contractAddress;
-          console.log(`  Found ${tx.contractName} at ${tx.contractAddress}`);
-        }
+      if (
+        tx.transactionType === "CREATE" &&
+        tx.contractName === "ERC1967Proxy"
+      ) {
+        proxyAddresses.push(tx.contractAddress);
+        console.log(`  Found ERC1967Proxy at ${tx.contractAddress}`);
       }
     }
 
+    // Map proxy addresses to contract types based on deployment order
+    // The order should be: Roles, Brands, Wrappers, Whitelist, Payments, Sales, Memberships
+    const contractKeys = [
+      "ROLES_ADDRESS",
+      "BRANDS_ADDRESS",
+      "WRAPPERS_ADDRESS",
+      "WHITELIST_ADDRESS",
+      "PAYMENTS_ADDRESS",
+      "SALES_ADDRESS",
+      "MEMBERSHIPS_ADDRESS",
+    ];
+
+    for (
+      let i = 0;
+      i < Math.min(proxyAddresses.length, contractKeys.length);
+      i++
+    ) {
+      addresses[contractKeys[i]] = proxyAddresses[i];
+      console.log(`  Mapped ${contractKeys[i]}: ${proxyAddresses[i]}`);
+    }
+
     return addresses;
-  }
-
-  /**
-   * Maps contract names from broadcast to our expected keys
-   */
-  private mapContractName(contractName: string): string | null {
-    const mapping: Record<string, string> = {
-      Roles: "ROLES_ADDRESS",
-      Brands: "BRANDS_ADDRESS",
-      Wrappers: "WRAPPERS_ADDRESS",
-      Whitelist: "WHITELIST_ADDRESS",
-      Payments: "PAYMENTS_ADDRESS",
-      Sales: "SALES_ADDRESS",
-      Memberships: "MEMBERSHIPS_ADDRESS",
-    };
-
-    return mapping[contractName] || null;
   }
 }
 
