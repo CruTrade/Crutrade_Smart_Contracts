@@ -175,9 +175,9 @@ contract TestVerification is Script {
     console.log("Testing Brands Contract...");
 
     // Test first brand existence
-    try brands.isValidBrand(0) returns (bool isValid) {
+    try brands.isValidBrand(1) returns (bool isValid) {
       if (isValid) {
-        console.log("  + First brand (ID 0) exists");
+        console.log("  + First brand (ID 1) exists");
 
         // Test brand owner
         try brands.getBrandOwner(0) returns (address owner) {

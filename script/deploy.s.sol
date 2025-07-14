@@ -252,11 +252,13 @@ contract CrutradeDeploy is Script {
     operationalAddresses[3] = operational4; // Deployer (operational4)
 
     // User roles to grant to admin (following test pattern)
-    bytes32[] memory userRoles = new bytes32[](4);
+    bytes32[] memory userRoles = new bytes32[](6);
     userRoles[0] = keccak256('OWNER');
     userRoles[1] = keccak256('OPERATIONAL');
     userRoles[2] = keccak256('TREASURY');
     userRoles[3] = keccak256('FIAT');
+    userRoles[4] = keccak256('PAUSER');
+    userRoles[5] = keccak256('UPGRADER');
 
     // Deploy Roles with minimal configuration (empty contract addresses for now)
     rolesProxy = new ERC1967Proxy(
@@ -303,6 +305,20 @@ contract CrutradeDeploy is Script {
 
     Roles(address(rolesProxy)).grantRole(keccak256('MEMBERSHIPS'), address(membershipsProxy));
     console.log('   - MEMBERSHIPS role granted to Memberships contract');
+
+    // Grant delegate roles to contracts that need them
+    Roles(address(rolesProxy)).grantDelegateRole(address(wrappersProxy));
+    console.log('   - Delegate role granted to Wrappers contract');
+
+    Roles(address(rolesProxy)).grantDelegateRole(address(paymentsProxy));
+    console.log('   - Delegate role granted to Payments contract');
+
+    Roles(address(rolesProxy)).grantDelegateRole(address(salesProxy));
+    console.log('   - Delegate role granted to Sales contract');
+
+    // Grant PAYMENT role to Payments contract
+    Roles(address(rolesProxy)).setPayment(address(paymentsProxy), 6);
+    console.log('   - PAYMENT role granted to Payments contract');
   }
 
   /**
