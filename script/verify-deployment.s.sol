@@ -243,10 +243,10 @@ contract DeploymentVerifier is Script {
     console.log("3. Verifying Brands Setup...");
 
     // Check if first brand exists (should be brand ID 0)
-    bool firstBrandValid = brands.isValidBrand(0);
+    bool firstBrandValid = brands.isValidBrand(1);
     if (firstBrandValid) {
-      address firstBrandOwner = brands.getBrandOwner(0);
-      console.log("  + First brand (ID 0) exists and is valid");
+      address firstBrandOwner = brands.getBrandOwner(1);
+      console.log("  + First brand (ID 1) exists and is valid");
       console.log("    Owner:", firstBrandOwner);
 
       // Check if owner matches expected admin
@@ -257,7 +257,7 @@ contract DeploymentVerifier is Script {
         _addWarning("First brand owner does not match expected admin address");
       }
     } else {
-      _addError("First brand (ID 0) does not exist or is invalid");
+      _addError("First brand (ID 1) does not exist or is invalid");
     }
 
     console.log("");
