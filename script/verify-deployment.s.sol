@@ -250,7 +250,7 @@ contract DeploymentVerifier is Script {
       console.log("    Owner:", firstBrandOwner);
 
       // Check if owner matches expected admin
-      address expectedAdmin = vm.envAddress("OWNER");
+      address expectedAdmin = vm.envAddress("BRAND_OWNER");
       if (firstBrandOwner == expectedAdmin) {
         console.log("    + Owner matches expected admin address");
       } else {

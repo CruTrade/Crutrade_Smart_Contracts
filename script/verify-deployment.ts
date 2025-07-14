@@ -233,6 +233,7 @@ class DeploymentVerifier {
       if (
         key.includes("_ADDRESS") ||
         key === "OWNER" ||
+        key === "BRAND_OWNER" ||
         key === "OPERATIONAL_1" ||
         key === "OPERATIONAL_2" ||
         key === "OPERATIONAL_3" ||
@@ -256,6 +257,7 @@ class DeploymentVerifier {
   private loadRequiredEnvVars() {
     const requiredVars = [
       "OWNER",
+      "BRAND_OWNER",
       "OPERATIONAL_1",
       "OPERATIONAL_2",
       "TREASURY_ADDRESS",

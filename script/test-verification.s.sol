@@ -182,11 +182,21 @@ contract TestVerification is Script {
         // Test brand owner
         try brands.getBrandOwner(1) returns (address owner) {
           console.log("  + First brand owner:", owner);
+
+          // Check if brand owner matches expected BRAND_OWNER
+          address expectedBrandOwner = vm.envAddress("BRAND_OWNER");
+          if (owner == expectedBrandOwner) {
+            console.log("  + Brand owner matches expected BRAND_OWNER");
+          } else {
+            console.log("  [WARNING] Brand owner does not match expected BRAND_OWNER");
+            console.log("    Expected:", expectedBrandOwner);
+            console.log("    Actual:", owner);
+          }
         } catch {
           console.log("  [ERROR] Could not get first brand owner");
         }
       } else {
-        console.log("  [WARNING] First brand (ID 0) does not exist");
+        console.log("  [WARNING] First brand (ID 1) does not exist");
       }
     } catch {
       console.log("  [ERROR] Could not check first brand validity");

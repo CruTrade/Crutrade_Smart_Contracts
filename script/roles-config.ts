@@ -21,6 +21,9 @@ export interface RoleConfig {
   pauser: string;
   upgrader: string;
 
+  // Brand ownership
+  brandOwner: string;
+
   // Additional operational roles (optional)
   lister?: string;
   buyer?: string;
@@ -66,6 +69,7 @@ export const LOCAL_ROLES_CONFIG: RoleConfig = {
   fiat: ANVIL_3_OPERATIONAL,
   pauser: ANVIL_2_MULTISIG,
   upgrader: ANVIL_2_MULTISIG,
+  brandOwner: ANVIL_2_MULTISIG, // Multisig owns the brand
 };
 
 // TODO: Replace these with your actual testnet addresses for testing gasless functionality
@@ -87,6 +91,7 @@ export const TESTNET_ROLES_CONFIG: RoleConfig = {
   pauser: TESTNET_MULTISIG,
   upgrader: TESTNET_MULTISIG,
   treasury: TESTNET_MULTISIG,
+  brandOwner: TESTNET_MULTISIG, // Multisig owns the brand
 
   // Server signing key (unfunded, for signing)
   operational1: TESTNET_SERVER_SIGNING_KEY,
@@ -120,6 +125,7 @@ export const MAINNET_ROLES_CONFIG: RoleConfig = {
   pauser: MAINNET_MULTISIG, // Emergency pause functionality
   upgrader: MAINNET_MULTISIG, // Contract upgrade authorization
   treasury: MAINNET_MULTISIG, // Receives platform fees
+  brandOwner: MAINNET_MULTISIG, // Multisig owns the brand
 
   // Server Signing Key (Unfunded) - Signs gasless transactions
   operational1: MAINNET_SERVER_SIGNING_KEY,
@@ -171,6 +177,7 @@ export function validateRolesConfig(
     "fiat",
     "pauser",
     "upgrader",
+    "brandOwner", // Added brandOwner to required roles
   ];
 
   // Optional roles (check if present)
@@ -261,6 +268,11 @@ export function printRolesConfig(
   console.log("🔒 Security Roles:");
   console.log(`  Pauser: ${config.pauser}`);
   console.log(`  Upgrader: ${config.upgrader}`);
+  console.log("");
+
+  // Brand ownership
+  console.log("🏷️  Brand Ownership:");
+  console.log(`  Brand Owner: ${config.brandOwner}`);
   console.log("");
 
   // Optional roles
@@ -392,6 +404,7 @@ export function generateEnvVars(config: RoleConfig): Record<string, string> {
     FIAT: config.fiat,
     PAUSER: config.pauser,
     UPGRADER: config.upgrader,
+    BRAND_OWNER: config.brandOwner,
     ...(config.emergencyAdmin && { EMERGENCY_ADMIN: config.emergencyAdmin }),
     ...(config.governance && { GOVERNANCE: config.governance }),
     ...(config.partner1 && { PARTNER_1: config.partner1 }),

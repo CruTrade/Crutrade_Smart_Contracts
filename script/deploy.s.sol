@@ -172,13 +172,15 @@ contract CrutradeDeploy is Script {
    * @dev Uses the actual roles address instead of a dummy address
    */
   function _deployOtherContractsWithCorrectRoles() private {
-    // Get owner from environment for Brands initialization
+    // Get owner from environment for role management
     address owner = vm.envAddress("OWNER");
+    // Get brand owner from environment for brand ownership
+    address brandOwner = vm.envAddress("BRAND_OWNER");
 
-    // Deploy Brands with correct roles address and automatic first brand registration for admin
+    // Deploy Brands with correct roles address and brand owner for first brand registration
     brandsProxy = new ERC1967Proxy(
       address(brandsImpl),
-      abi.encodeCall(brandsImpl.initialize, (address(rolesProxy), owner))
+      abi.encodeCall(brandsImpl.initialize, (address(rolesProxy), brandOwner))
     );
 
     // Deploy other contracts with correct roles address
