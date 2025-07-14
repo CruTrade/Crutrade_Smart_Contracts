@@ -180,7 +180,7 @@ contract TestVerification is Script {
         console.log("  + First brand (ID 1) exists");
 
         // Test brand owner
-        try brands.getBrandOwner(0) returns (address owner) {
+        try brands.getBrandOwner(1) returns (address owner) {
           console.log("  + First brand owner:", owner);
         } catch {
           console.log("  [ERROR] Could not get first brand owner");
@@ -218,24 +218,21 @@ contract TestVerification is Script {
       console.log("  [ERROR] Whitelist contract is not accessible");
     }
 
-    // Test Payments contract - try to check if it's accessible
-    // We'll test with a simple call that should work
-    try payments.splitServiceFee(bytes32(0), address(0), address(0)) returns (IPayments.ServiceFee memory) {
+    // Test Payments contract - try to check if it's accessible using a view function
+    try Payments(paymentsAddress).getFees() returns (IPayments.Fee[] memory) {
       console.log("  + Payments contract is accessible");
     } catch {
       console.log("  [ERROR] Payments contract is not accessible");
     }
 
-    // Test Sales contract - try to check if it's accessible
-    // We'll test with a simple call that should work
-    try sales.getSale(0) returns (ISales.Sale memory) {
+    // Test Sales contract - try to check if it's accessible using a view function
+    try Sales(salesAddress).getNextScheduleTime() returns (uint256) {
       console.log("  + Sales contract is accessible");
     } catch {
       console.log("  [ERROR] Sales contract is not accessible");
     }
 
     // Test Memberships contract - try to check if it's accessible
-    // We'll test with a simple call that should work
     try memberships.getMembership(address(0)) returns (uint256) {
       console.log("  + Memberships contract is accessible");
     } catch {
