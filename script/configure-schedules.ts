@@ -651,6 +651,204 @@ async function configureSchedules() {
 }
 
 /**
+ * Delete schedules from the contract
+ */
+async function deleteSchedules() {
+  const network = process.env.NETWORK || "local";
+  const config = NETWORK_CONFIGS[network];
+
+  if (!config) {
+    console.error(`❌ Unknown network: ${network}`);
+    console.log("Available networks:", Object.keys(NETWORK_CONFIGS).join(", "));
+    process.exit(1);
+  }
+
+  console.log(`🗑️  Deleting schedules from ${config.name} network\n`);
+
+  // Setup provider and wallet
+  const provider = new ethers.JsonRpcProvider(config.rpcUrl);
+  const wallet = new ethers.Wallet(config.privateKey, provider);
+
+  // Get contract addresses and ABI
+  const salesAddress = await getContractAddress("Sales");
+  const salesAbi = await getContractABI("Sales");
+
+  if (!salesAddress || !salesAbi) {
+    console.error("❌ Failed to load Sales contract information");
+    process.exit(1);
+  }
+
+  console.log(`📡 Connected to ${config.name} network`);
+  console.log(`🏗️  Sales contract: ${salesAddress}`);
+  console.log(`👤 Account: ${wallet.address}\n`);
+
+  // Create contract instance
+  const salesContract = new ethers.Contract(salesAddress, salesAbi, wallet);
+
+  // Check current schedules
+  console.log("🔍 Checking current schedules...");
+  let currentSchedules;
+  try {
+    currentSchedules = await salesContract.getActiveSchedules();
+
+    if (currentSchedules[0].length === 0) {
+      console.log("📊 No active schedules found");
+      return;
+    }
+
+    console.log(`📊 Found ${currentSchedules[0].length} active schedules:`);
+    for (let i = 0; i < currentSchedules[0].length; i++) {
+      const scheduleId = Number(currentSchedules[0][i]);
+      const dayOfWeek = Number(currentSchedules[1][i]);
+      const hour = Number(currentSchedules[2][i]);
+      const minute = Number(currentSchedules[3][i]);
+
+      console.log(
+        `   Schedule ${scheduleId}: ${getDayName(dayOfWeek)} at ${formatTime(
+          hour,
+          minute
+        )} UTC`
+      );
+    }
+    console.log("");
+  } catch (error) {
+    console.log("⚠️  Could not fetch current schedules:", error);
+    return;
+  }
+
+  // Get schedule IDs to delete from command line arguments
+  const scheduleIdsToDelete = process.argv
+    .slice(3)
+    .map((id) => parseInt(id))
+    .filter((id) => !isNaN(id));
+
+  if (scheduleIdsToDelete.length === 0) {
+    console.log("❌ No schedule IDs provided for deletion");
+    console.log("");
+    console.log("Usage:");
+    console.log(
+      "  bun run script/configure-schedules.ts delete <id1> [id2] [id3] ..."
+    );
+    console.log("");
+    console.log("Examples:");
+    console.log("  bun run script/configure-schedules.ts delete 10");
+    console.log("  bun run script/configure-schedules.ts delete 2 3 4");
+    console.log(
+      "  NETWORK=mainnet bun run script/configure-schedules.ts delete 10"
+    );
+    process.exit(1);
+  }
+
+  // Validate that the schedules exist
+  const existingScheduleIds = currentSchedules[0].map((id: any) => Number(id));
+  const validScheduleIds = scheduleIdsToDelete.filter((id) =>
+    existingScheduleIds.includes(id)
+  );
+  const invalidScheduleIds = scheduleIdsToDelete.filter(
+    (id) => !existingScheduleIds.includes(id)
+  );
+
+  if (invalidScheduleIds.length > 0) {
+    console.log(
+      `⚠️  Warning: The following schedule IDs do not exist: ${invalidScheduleIds.join(
+        ", "
+      )}`
+    );
+  }
+
+  if (validScheduleIds.length === 0) {
+    console.log("❌ No valid schedule IDs to delete");
+    process.exit(1);
+  }
+
+  console.log(`🎯 Schedules to be deleted: ${validScheduleIds.join(", ")}`);
+
+  // Ask for confirmation
+  const readline = require("readline");
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const answer = await new Promise<string>((resolve) => {
+    rl.question("🤔 Proceed with deleting these schedules? (y/N): ", resolve);
+  });
+  rl.close();
+
+  if (answer.toLowerCase() !== "y" && answer.toLowerCase() !== "yes") {
+    console.log("❌ Operation cancelled");
+    process.exit(0);
+  }
+
+  // Execute the transaction
+  console.log("\n🚀 Executing schedule deletion...");
+
+  try {
+    const tx = await salesContract.removeSchedules(validScheduleIds);
+
+    console.log(`✅ Transaction submitted: ${tx.hash}`);
+
+    // Wait for confirmation
+    console.log("⏳ Waiting for confirmation...");
+    const receipt = await tx.wait();
+
+    if (receipt && receipt.status === 1) {
+      console.log("✅ Schedules deleted successfully!");
+      console.log(`📋 Transaction hash: ${tx.hash}`);
+      console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
+    } else {
+      console.error("❌ Transaction failed");
+    }
+  } catch (error) {
+    console.error("❌ Failed to delete schedules:", error);
+    process.exit(1);
+  }
+
+  // Verify the deletion
+  console.log("\n🔍 Verifying deletion...");
+  try {
+    const updatedSchedules = await salesContract.getActiveSchedules();
+
+    console.log(
+      `📊 Remaining schedules (${updatedSchedules[0].length} total):`
+    );
+    for (let i = 0; i < updatedSchedules[0].length; i++) {
+      const scheduleId = Number(updatedSchedules[0][i]);
+      const dayOfWeek = Number(updatedSchedules[1][i]);
+      const hour = Number(updatedSchedules[2][i]);
+      const minute = Number(updatedSchedules[3][i]);
+
+      console.log(
+        `   Schedule ${scheduleId}: ${getDayName(dayOfWeek)} at ${formatTime(
+          hour,
+          minute
+        )} UTC`
+      );
+    }
+
+    // Check if our deleted schedules are gone
+    const remainingScheduleIds = updatedSchedules[0].map((id: any) =>
+      Number(id)
+    );
+    const stillExist = validScheduleIds.filter((id) =>
+      remainingScheduleIds.includes(id)
+    );
+
+    if (stillExist.length === 0) {
+      console.log("\n✅ All specified schedules have been deleted!");
+    } else {
+      console.log(
+        `\n⚠️  Some schedules may still exist: ${stillExist.join(", ")}`
+      );
+    }
+  } catch (error) {
+    console.log("⚠️  Could not verify deletion:", error);
+  }
+
+  console.log("\n🎉 Schedule deletion complete!");
+}
+
+/**
  * Main execution function
  */
 async function main() {
@@ -660,15 +858,20 @@ async function main() {
     await readSchedules();
   } else if (mode === "write") {
     await configureSchedules();
+  } else if (mode === "delete") {
+    await deleteSchedules();
   } else {
-    console.error("❌ Invalid mode. Use 'read' or 'write'");
+    console.error("❌ Invalid mode. Use 'read', 'write', or 'delete'");
     console.log("");
     console.log("Usage:");
     console.log(
-      "  bun run script/configure-schedules.ts read    # Read current schedules"
+      "  bun run script/configure-schedules.ts read                    # Read current schedules"
     );
     console.log(
-      "  bun run script/configure-schedules.ts write   # Configure new schedules (default)"
+      "  bun run script/configure-schedules.ts write                   # Configure new schedules (default)"
+    );
+    console.log(
+      "  bun run script/configure-schedules.ts delete <id1> [id2] ...  # Delete schedules"
     );
     console.log("");
     console.log("Examples:");
@@ -676,6 +879,8 @@ async function main() {
     console.log(
       "  NETWORK=testnet bun run script/configure-schedules.ts write"
     );
+    console.log("  bun run script/configure-schedules.ts delete 10");
+    console.log("  bun run script/configure-schedules.ts delete 2 3 4");
     process.exit(1);
   }
 }
