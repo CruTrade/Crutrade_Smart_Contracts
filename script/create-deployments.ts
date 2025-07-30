@@ -1,28 +1,15 @@
-#!/usr/bin/env bun
-import { writeFileSync, readFileSync, existsSync } from "fs";
 import { resolve } from "path";
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 
 const contracts = [
   "Roles",
-  "Brands",
+  "Brands", 
   "Wrappers",
   "Whitelist",
   "Payments",
   "Sales",
-  "Memberships",
-] as const;
-
-async function loadAbi(contractName: string) {
-  const abiPath = resolve(`out/${contractName}.sol/${contractName}.json`);
-  if (!existsSync(abiPath)) return [];
-
-  try {
-    const artifact = JSON.parse(readFileSync(abiPath, "utf8"));
-    return artifact.abi;
-  } catch {
-    return [];
-  }
-}
+  "Memberships"
+];
 
 function extractAddressesFromBroadcast(
   network: "mainnet" | "testnet"
@@ -120,65 +107,81 @@ function loadDeployments() {
   return deployments;
 }
 
-async function updatePackage() {
+async function createDeployments() {
+  console.log("📁 Creating deployments folder...");
+  
   const deployments = loadDeployments();
   const timestamp = new Date().toISOString();
 
-  // Load all ABIs
-  const abis: Record<string, any> = {};
-  for (const contract of contracts) {
-    abis[contract] = await loadAbi(contract);
+  // Create deployments directory
+  const deploymentsDir = resolve("deployments");
+  if (!existsSync(deploymentsDir)) {
+    mkdirSync(deploymentsDir, { recursive: true });
   }
 
-  const indexContent = `// Auto-generated - Do not edit manually
-// Updated: ${timestamp}
-
-import type { Address } from 'viem';
-
-// Contract ABIs
-export const abis = {
-${contracts
-  .map((name) => `  ${name}: ${JSON.stringify(abis[name], null, 2)} as const,`)
-  .join("\n")}
-};
-
-// Contract addresses
-export const addresses = {
-  mainnet: {
-${contracts
-  .map((name) => {
-    const addr =
-      deployments.mainnet[name.toLowerCase()] ||
-      "0x0000000000000000000000000000000000000000";
-    return `    ${name}: '${addr}' as Address,`;
-  })
-  .join("\n")}
-  },
-  testnet: {
-${contracts
-  .map((name) => {
-    const addr =
-      deployments.testnet[name.toLowerCase()] ||
-      "0x0000000000000000000000000000000000000000";
-    return `    ${name}: '${addr}' as Address,`;
-  })
-  .join("\n")}
+  // Create mainnet directory
+  const mainnetDir = resolve("deployments/mainnet");
+  if (!existsSync(mainnetDir)) {
+    mkdirSync(mainnetDir, { recursive: true });
   }
-};
 
-// Helper function
-export function getContract(name: keyof typeof addresses.mainnet, network: 'mainnet' | 'testnet') {
-  return {
-    address: addresses[network][name],
-    abi: abis[name]
+  // Create testnet directory
+  const testnetDir = resolve("deployments/testnet");
+  if (!existsSync(testnetDir)) {
+    mkdirSync(testnetDir, { recursive: true });
+  }
+
+  // Create mainnet deployment file
+  const mainnetDeployment = {
+    network: "mainnet",
+    chainId: 43114,
+    timestamp,
+    contracts: contracts.reduce((acc, contract) => {
+      const addr = deployments.mainnet[contract.toLowerCase()] || "0x0000000000000000000000000000000000000000";
+      acc[contract.toLowerCase()] = addr;
+      return acc;
+    }, {} as Record<string, string>)
   };
+
+  writeFileSync(
+    resolve("deployments/mainnet/latest.json"),
+    JSON.stringify(mainnetDeployment, null, 2)
+  );
+
+  // Create testnet deployment file
+  const testnetDeployment = {
+    network: "testnet",
+    chainId: 43113,
+    timestamp,
+    contracts: contracts.reduce((acc, contract) => {
+      const addr = deployments.testnet[contract.toLowerCase()] || "0x0000000000000000000000000000000000000000";
+      acc[contract.toLowerCase()] = addr;
+      return acc;
+    }, {} as Record<string, string>)
+  };
+
+  writeFileSync(
+    resolve("deployments/testnet/latest.json"),
+    JSON.stringify(testnetDeployment, null, 2)
+  );
+
+  // Create index file for easy access
+  const deploymentsIndex = {
+    mainnet: mainnetDeployment,
+    testnet: testnetDeployment,
+    timestamp
+  };
+
+  writeFileSync(
+    resolve("deployments/index.json"),
+    JSON.stringify(deploymentsIndex, null, 2)
+  );
+
+  console.log("✅ Deployments folder created successfully!");
+  console.log(`📄 Created files:`);
+  console.log(`  - deployments/mainnet/latest.json`);
+  console.log(`  - deployments/testnet/latest.json`);
+  console.log(`  - deployments/index.json`);
 }
 
-// Default export
-export default { abis, addresses, getContract };`;
-
-  writeFileSync(resolve("index.ts"), indexContent);
-  console.log("📦 Package updated");
-}
-
-updatePackage().catch(console.error);
+createDeployments().catch(console.error); 
