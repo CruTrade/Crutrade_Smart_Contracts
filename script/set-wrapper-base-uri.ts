@@ -158,35 +158,39 @@ async function main() {
     try {
       const tx = await contract.setHttpsBaseURI(newBaseURI);
       console.log("📋 Transaction sent:", tx.hash);
-      
+
       console.log("⏳ Waiting for confirmation...");
       await tx.wait();
-      
+
       console.log("✅ Base URI updated successfully!");
       console.log(`🔗 New URI: ${newBaseURI}`);
       console.log(`📋 Transaction: ${tx.hash}`);
     } catch (error: any) {
       console.error("❌ Transaction failed!");
-      
+
       // Try to decode the error
       if (error.data) {
         console.error("📋 Error data:", error.data);
-        
+
         // Check if it's a custom error
         if (error.data.startsWith("0xb87a12a9")) {
-          console.error("🔍 This appears to be a 'NotAllowed' error - your wallet doesn't have the required role");
-          console.error("💡 Make sure your wallet has the OWNER role in the Roles contract");
+          console.error(
+            "🔍 This appears to be a 'NotAllowed' error - your wallet doesn't have the required role"
+          );
+          console.error(
+            "💡 Make sure your wallet has the OWNER role in the Roles contract"
+          );
         }
       }
-      
+
       if (error.reason) {
         console.error("📋 Error reason:", error.reason);
       }
-      
+
       if (error.shortMessage) {
         console.error("📋 Error message:", error.shortMessage);
       }
-      
+
       throw error;
     }
   } catch (error) {
