@@ -58,68 +58,42 @@ export const LOCAL_ROLES_CONFIG: RoleConfig = {
   upgrader: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
 };
 
+const TESTNET_OWNER = "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb";
+const TESTNET_HOT_WALLET_1 = "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC";
+const TESTNET_HOT_WALLET_2 = "0xe812BeeF1F7A62ed142835Ec2622B71AeA858085";
+
 /**
  * @notice Configuration for testnet deployment
  * @dev Uses environment variables for sensitive addresses
  */
 export const TESTNET_ROLES_CONFIG: RoleConfig = {
-  owner: process.env.OWNER || "0x0000000000000000000000000000000000000000",
-  operational1:
-    process.env.OPERATIONAL_1 || "0x0000000000000000000000000000000000000000",
-  operational2:
-    process.env.OPERATIONAL_2 || "0x0000000000000000000000000000000000000000",
-  treasury:
-    process.env.TREASURY ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  fiat:
-    process.env.FIAT ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  pauser:
-    process.env.PAUSER ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  upgrader:
-    process.env.UPGRADER ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  // Optional: Add partner roles for testnet
-  partner1: process.env.PARTNER_1,
-  partner2: process.env.PARTNER_2,
+  owner: TESTNET_OWNER,
+  operational1: TESTNET_HOT_WALLET_1,
+  operational2: TESTNET_HOT_WALLET_2,
+  treasury: TESTNET_OWNER,
+  fiat: TESTNET_HOT_WALLET_1,
+  pauser: TESTNET_OWNER,
+  upgrader: TESTNET_OWNER,
 };
+
+export const MAINNET_MULTISIG = "0xE8c2E3Fb20810b5b65361A54e51b8B3F30e545E9";
+export const MAINNET_HOT_WALLET_1 =
+  "0xd67E626Cc087477c80Aa48A68a304091537E9A56";
+export const MAINNET_HOT_WALLET_2 =
+  "0x4E19938Cc3a6cF0d4F0f1394813bb4a9aBa4b912";
 
 /**
  * @notice Configuration for mainnet deployment
  * @dev Uses environment variables for all addresses - MUST be set before deployment
  */
 export const MAINNET_ROLES_CONFIG: RoleConfig = {
-  owner: process.env.OWNER || "0x0000000000000000000000000000000000000000",
-  operational1:
-    process.env.OPERATIONAL_1 || "0x0000000000000000000000000000000000000000",
-  operational2:
-    process.env.OPERATIONAL_2 || "0x0000000000000000000000000000000000000000",
-  treasury:
-    process.env.TREASURY ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  fiat:
-    process.env.FIAT ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  pauser:
-    process.env.PAUSER ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  upgrader:
-    process.env.UPGRADER ||
-    process.env.OWNER ||
-    "0x0000000000000000000000000000000000000000",
-  // Additional mainnet roles
-  emergencyAdmin: process.env.EMERGENCY_ADMIN,
-  governance: process.env.GOVERNANCE,
-  partner1: process.env.PARTNER_1,
-  partner2: process.env.PARTNER_2,
+  owner: MAINNET_MULTISIG,
+  operational1: MAINNET_HOT_WALLET_1,
+  operational2: MAINNET_HOT_WALLET_2,
+  treasury: MAINNET_MULTISIG,
+  fiat: MAINNET_HOT_WALLET_2,
+  pauser: MAINNET_MULTISIG,
+  upgrader: MAINNET_MULTISIG,
 };
 
 /**

@@ -39,26 +39,21 @@ export const DEFAULT_PAYMENTS_CONFIG: PaymentsConfig = {
 
 /**
  * @notice Configuration for mainnet deployment
- * @dev This should be updated with actual multisig addresses before mainnet deployment
+ * @dev Uses hardcoded multisig address for treasury
  */
 export const MAINNET_PAYMENTS_CONFIG: PaymentsConfig = {
-  treasuryAddress: "0x0000000000000000000000000000000000000000", // TODO: Set actual multisig address
+  treasuryAddress: "0xE8c2E3Fb20810b5b65361A54e51b8B3F30e545E9", // Mainnet multisig
   fiatFeePercentage: 250, // 2.5% (lower for mainnet)
   membershipFees: [
     {
       membershipId: 0,
-      sellerFee: 500, // 5% seller fee
-      buyerFee: 300, // 3% buyer fee
+      sellerFee: 0, // 0% seller fee
+      buyerFee: 0, // 0% buyer fee
     },
     {
       membershipId: 1,
-      sellerFee: 75, // 0.75% seller fee
-      buyerFee: 75, // 0.75% buyer fee
-    },
-    {
-      membershipId: 2,
-      sellerFee: 25, // 0.25% seller fee
-      buyerFee: 25, // 0.25% buyer fee
+      sellerFee: 150, // 1.5% seller fee
+      buyerFee: 500, // 5% buyer fee
     },
   ],
 };
@@ -67,18 +62,18 @@ export const MAINNET_PAYMENTS_CONFIG: PaymentsConfig = {
  * @notice Configuration for testnet deployment
  */
 export const TESTNET_PAYMENTS_CONFIG: PaymentsConfig = {
-  treasuryAddress: "0xd6ef21b20D3Bb4012808695c96A60f6032e14FB6", // Default admin for testing
+  treasuryAddress: "0x45a0744065e5455CaAC18aACB99bBB64154F8cfb", // Default admin for testing
   fiatFeePercentage: 300, // 3%
   membershipFees: [
     {
       membershipId: 0,
-      sellerFee: 600, // 6% seller fee
-      buyerFee: 400, // 4% buyer fee
+      sellerFee: 0, // 0% seller fee
+      buyerFee: 0, // 0% buyer fee
     },
     {
       membershipId: 1,
-      sellerFee: 100, // 1% seller fee
-      buyerFee: 100, // 1% buyer fee
+      sellerFee: 150, // 1.5% seller fee
+      buyerFee: 500, // 5% buyer fee
     },
   ],
 };
