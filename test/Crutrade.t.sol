@@ -12,6 +12,7 @@ import "../src/Sales.sol";
 import "../src/Whitelist.sol";
 import "../src/Wrappers.sol";
 import "../src/Brands.sol";
+import "../src/USDCApprovalProxy.sol";
 
 // Import base contracts for structs
 import "../src/abstracts/SalesBase.sol";
@@ -74,6 +75,7 @@ contract CrutradeEcosystemTest is Test {
     Whitelist public whitelist;
     Wrappers public wrappers;
     Brands public brands;
+    USDCApprovalProxy public usdcApprovalProxy;
     MockERC20 public mockToken;
     MockERC20 public fiatToken;
 
@@ -126,6 +128,7 @@ contract CrutradeEcosystemTest is Test {
         Whitelist whitelistImpl = new Whitelist();
         Wrappers wrappersImpl = new Wrappers();
         Brands brandsImpl = new Brands();
+        USDCApprovalProxy usdcApprovalProxyImpl = new USDCApprovalProxy();
 
         // Deploy proxies and initialize
         bytes32[] memory userRoles = new bytes32[](4);
@@ -202,6 +205,15 @@ contract CrutradeEcosystemTest is Test {
         ERC1967Proxy brandsProxy = new ERC1967Proxy(address(brandsImpl), brandsInitData);
         brands = Brands(address(brandsProxy));
 
+        bytes memory usdcApprovalProxyInitData = abi.encodeWithSelector(
+            USDCApprovalProxy.initialize.selector, 
+            address(roles), 
+            address(mockToken), // Use mockToken as USDC for testing
+            address(payments)
+        );
+        ERC1967Proxy usdcApprovalProxyProxy = new ERC1967Proxy(address(usdcApprovalProxyImpl), usdcApprovalProxyInitData);
+        usdcApprovalProxy = USDCApprovalProxy(address(usdcApprovalProxyProxy));
+
         // Setup roles - now properly configured
         // The OPERATIONAL role is already granted to operational address in initialize
         // The OWNER, TREASURY, and FIAT roles are granted to admin in initialize
@@ -210,6 +222,7 @@ contract CrutradeEcosystemTest is Test {
         roles.grantRole(BRANDS, address(brands));
         roles.grantRole(MEMBERSHIPS, address(memberships));
         roles.grantRole(PAYMENTS, address(payments));
+        roles.grantRole(keccak256('USDCPROXY'), address(usdcApprovalProxy));
 
         // Grant TREASURY role to treasury address (needed for fee operations)
         roles.grantRole(TREASURY, treasury);
@@ -3437,6 +3450,162 @@ contract CrutradeEcosystemTest is Test {
         }
 
         vm.stopPrank();
+    }
+
+    /* =============================================================
+                        USDC APPROVAL PROXY TESTS
+    ============================================================= */
+
+    function test_USDCApprovalProxyInitialization() public {
+        assertEq(usdcApprovalProxy.usdcToken(), address(mockToken));
+        assertEq(usdcApprovalProxy.paymentsContract(), address(payments));
+    }
+
+    function test_USDCApprovalProxySetUSDCToken() public {
+        address newUSDC = makeAddr("newUSDC");
+        
+        vm.startPrank(admin);
+        
+        vm.expectEmit(true, true, false, true);
+        emit USDCApprovalProxy.USDCTokenUpdated(address(mockToken), newUSDC);
+        
+        usdcApprovalProxy.setUSDCToken(newUSDC);
+        
+        assertEq(usdcApprovalProxy.usdcToken(), newUSDC);
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxySetUSDCTokenRevertZeroAddress() public {
+        vm.startPrank(admin);
+        
+        vm.expectRevert(USDCApprovalProxy.ZeroAddress.selector);
+        usdcApprovalProxy.setUSDCToken(address(0));
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxySetUSDCTokenRevertNotOwner() public {
+        address newUSDC = makeAddr("newUSDC");
+        
+        vm.startPrank(buyer);
+        
+        vm.expectRevert();
+        usdcApprovalProxy.setUSDCToken(newUSDC);
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxySetPaymentsContract() public {
+        address newPayments = makeAddr("newPayments");
+        
+        vm.startPrank(admin);
+        
+        vm.expectEmit(true, true, false, true);
+        emit USDCApprovalProxy.PaymentsContractUpdated(address(payments), newPayments);
+        
+        usdcApprovalProxy.setPaymentsContract(newPayments);
+        
+        assertEq(usdcApprovalProxy.paymentsContract(), newPayments);
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxySetPaymentsContractRevertZeroAddress() public {
+        vm.startPrank(admin);
+        
+        vm.expectRevert(USDCApprovalProxy.ZeroAddress.selector);
+        usdcApprovalProxy.setPaymentsContract(address(0));
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxyRecordUSDCApproval() public {
+        uint256 approvalAmount = 1000 * 10**18;
+        
+        // First, buyer approves mockToken (USDC) for payments contract
+        vm.startPrank(buyer);
+        mockToken.approve(address(payments), approvalAmount);
+        
+        // Then record the approval through the proxy
+        vm.expectEmit(true, true, false, true);
+        emit USDCApprovalProxy.USDCApprovalForwarded(buyer, address(payments), approvalAmount, true);
+        
+        usdcApprovalProxy.recordUSDCApproval(address(payments), approvalAmount);
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxyRecordUSDCApprovalRevertInsufficientAllowance() public {
+        uint256 approvalAmount = 1000 * 10**18;
+        uint256 recordAmount = 2000 * 10**18; // More than approved
+        
+        // Buyer approves less than what we try to record
+        vm.startPrank(buyer);
+        mockToken.approve(address(payments), approvalAmount);
+        
+        vm.expectRevert("Approval not found or insufficient");
+        usdcApprovalProxy.recordUSDCApproval(address(payments), recordAmount);
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxyRecordPaymentsApproval() public {
+        uint256 approvalAmount = 1000 * 10**18;
+        
+        // First, buyer approves mockToken (USDC) for payments contract
+        vm.startPrank(buyer);
+        mockToken.approve(address(payments), approvalAmount);
+        
+        // Then record the approval for payments specifically
+        vm.expectEmit(true, true, false, true);
+        emit USDCApprovalProxy.USDCApprovalForwarded(buyer, address(payments), approvalAmount, true);
+        
+        usdcApprovalProxy.recordPaymentsApproval(approvalAmount);
+        
+        vm.stopPrank();
+    }
+
+    function test_USDCApprovalProxyGetAllowance() public {
+        uint256 approvalAmount = 1000 * 10**18;
+        
+        // Buyer approves mockToken (USDC) for payments contract
+        vm.startPrank(buyer);
+        mockToken.approve(address(payments), approvalAmount);
+        vm.stopPrank();
+        
+        // Check allowance through proxy
+        uint256 allowance = usdcApprovalProxy.allowance(buyer, address(payments));
+        assertEq(allowance, approvalAmount);
+    }
+
+    function test_USDCApprovalProxyGetPaymentsAllowance() public {
+        uint256 approvalAmount = 1000 * 10**18;
+        
+        // Buyer approves mockToken (USDC) for payments contract
+        vm.startPrank(buyer);
+        mockToken.approve(address(payments), approvalAmount);
+        vm.stopPrank();
+        
+        // Check payments allowance through proxy
+        uint256 allowance = usdcApprovalProxy.paymentsAllowance(buyer);
+        assertEq(allowance, approvalAmount);
+    }
+
+    function test_USDCApprovalProxyGetAllowanceRevertUSDCNotSet() public {
+        // Deploy a new proxy without USDC set
+        USDCApprovalProxy testProxy = new USDCApprovalProxy();
+        
+        vm.expectRevert(USDCApprovalProxy.USDCTokenNotSet.selector);
+        testProxy.allowance(buyer, address(payments));
+    }
+
+    function test_USDCApprovalProxyGetPaymentsAllowanceRevertPaymentsNotSet() public {
+        // Deploy a new proxy without payments contract set
+        USDCApprovalProxy testProxy = new USDCApprovalProxy();
+        
+        vm.expectRevert(USDCApprovalProxy.PaymentsContractNotSet.selector);
+        testProxy.paymentsAllowance(buyer);
     }
 
 }
