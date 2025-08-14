@@ -11,6 +11,7 @@ import '../src/Whitelist.sol';
 import '../src/Payments.sol';
 import '../src/Sales.sol';
 import '../src/Memberships.sol';
+import '../src/USDCApprovalProxy.sol';
 import '../src/mock/MockUSDC.sol';
 import '../src/interfaces/IPayments.sol';
 
@@ -58,6 +59,7 @@ contract CrutradeDeploy is Script {
   Payments paymentsImpl;
   Sales salesImpl;
   Memberships membershipsImpl;
+  USDCApprovalProxy usdcApprovalProxyImpl;
 
   // Proxy contracts
   ERC1967Proxy rolesProxy;
@@ -67,6 +69,7 @@ contract CrutradeDeploy is Script {
   ERC1967Proxy paymentsProxy;
   ERC1967Proxy salesProxy;
   ERC1967Proxy membershipsProxy;
+  ERC1967Proxy usdcApprovalProxyProxy;
 
   /* MAIN DEPLOYMENT FUNCTION */
 
@@ -142,6 +145,7 @@ contract CrutradeDeploy is Script {
     console.log('   - Payments:', address(paymentsProxy));
     console.log('   - Sales:', address(salesProxy));
     console.log('   - Memberships:', address(membershipsProxy));
+    console.log('   - USDC Approval Proxy:', address(usdcApprovalProxyProxy));
   }
 
   /* DEPLOYMENT STEPS */
@@ -158,6 +162,7 @@ contract CrutradeDeploy is Script {
     paymentsImpl = new Payments();
     salesImpl = new Sales();
     membershipsImpl = new Memberships();
+    usdcApprovalProxyImpl = new USDCApprovalProxy();
     console.log('All implementation contracts deployed');
   }
 
@@ -224,6 +229,17 @@ contract CrutradeDeploy is Script {
       abi.encodeCall(membershipsImpl.initialize, (dummyRoles))
     );
 
+    // Deploy USDCApprovalProxy with USDC token address and dummy payments address
+    // The payments address will be updated after Roles is deployed
+    usdcApprovalProxyProxy = new ERC1967Proxy(
+      address(usdcApprovalProxyImpl),
+      abi.encodeCall(usdcApprovalProxyImpl.initialize, (
+        dummyRoles,
+        usdcAddress,
+        address(paymentsProxy) // Use the actual payments proxy address
+      ))
+    );
+
     console.log('All other contracts deployed (first brand registered)');
   }
 
@@ -261,13 +277,14 @@ contract CrutradeDeploy is Script {
     operationalAddresses[1] = operational2;
 
     // Prepare contract addresses in specific order
-    address[] memory contractAddresses = new address[](6);
-    contractAddresses[0] = address(brandsProxy);      // index 0
-    contractAddresses[1] = address(wrappersProxy);    // index 1
-    contractAddresses[2] = address(whitelistProxy);   // index 2
-    contractAddresses[3] = address(paymentsProxy);    // index 3
-    contractAddresses[4] = address(salesProxy);       // index 4
-    contractAddresses[5] = address(membershipsProxy); // index 5
+    address[] memory contractAddresses = new address[](7);
+    contractAddresses[0] = address(brandsProxy);             // index 0
+    contractAddresses[1] = address(wrappersProxy);           // index 1
+    contractAddresses[2] = address(whitelistProxy);          // index 2
+    contractAddresses[3] = address(paymentsProxy);           // index 3
+    contractAddresses[4] = address(salesProxy);              // index 4
+    contractAddresses[5] = address(membershipsProxy);        // index 5
+    contractAddresses[6] = address(usdcApprovalProxyProxy);  // index 6
 
     // User roles to grant to admin (multisig)
     bytes32[] memory userRoles = new bytes32[](5);
@@ -278,13 +295,14 @@ contract CrutradeDeploy is Script {
     userRoles[4] = keccak256('TREASURY');  // Treasury management
 
     // Contract-specific roles (matches contractAddresses order)
-    bytes32[] memory contractRoles = new bytes32[](6);
-    contractRoles[0] = keccak256('BRANDS');      // Brands contract role
-    contractRoles[1] = keccak256('WRAPPERS');    // Wrappers contract role
-    contractRoles[2] = keccak256('WHITELIST');   // Whitelist contract role
-    contractRoles[3] = keccak256('PAYMENTS');    // Payments contract role
-    contractRoles[4] = keccak256('SALES');       // Sales contract role
-    contractRoles[5] = keccak256('MEMBERSHIPS'); // Memberships contract role
+    bytes32[] memory contractRoles = new bytes32[](7);
+    contractRoles[0] = keccak256('BRANDS');          // Brands contract role
+    contractRoles[1] = keccak256('WRAPPERS');        // Wrappers contract role
+    contractRoles[2] = keccak256('WHITELIST');       // Whitelist contract role
+    contractRoles[3] = keccak256('PAYMENTS');        // Payments contract role
+    contractRoles[4] = keccak256('SALES');           // Sales contract role
+    contractRoles[5] = keccak256('MEMBERSHIPS');     // Memberships contract role
+    contractRoles[6] = keccak256('USDCPROXY');       // USDC Approval Proxy contract role
 
     // Indices of contracts that need delegate roles
     uint256[] memory delegateIndices = new uint256[](3);

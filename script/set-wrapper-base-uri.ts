@@ -19,6 +19,13 @@ const CONTRACT_ADDRESSES = {
   testnet: "0x75D8C1F61c2937858b87F1C89A57012cfAB909aa", // Same as staging for now
 };
 
+// USDC Approval Proxy contract addresses for different environments
+const USDC_PROXY_ADDRESSES = {
+  production: "", // To be set after mainnet deployment
+  staging: "", // To be set after testnet deployment
+  testnet: "", // Same as staging for now
+};
+
 // Roles contract addresses for different environments
 const ROLES_CONTRACT_ADDRESSES = {
   production: "0xc6110825812b42D21F93ac5bc5047547870DB42F", // Latest mainnet deployment
@@ -51,6 +58,7 @@ function getContractAddress(environment: string): string {
       "Payments",
       "Sales",
       "Memberships",
+      "USDCApprovalProxy",
     ];
     const proxyAddresses: string[] = [];
     for (const tx of data.transactions) {
