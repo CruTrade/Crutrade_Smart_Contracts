@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-08-14T16:54:59.640Z
+// Updated: 2025-08-14T17:01:32.147Z
 
 import type { Address } from 'viem';
 
