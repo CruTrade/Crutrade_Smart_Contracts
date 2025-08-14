@@ -2,24 +2,23 @@
 pragma solidity 0.8.30;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import './abstracts/ModifiersBase.sol';
 
 /**
  * @title USDCApprovalProxy
- * @notice Registry contract for monitoring USDC approvals
- * @dev Records and emits events when users approve USDC for our contracts
+ * @notice Proxy contract for USDC permit operations
+ * @dev Processes USDC permits on behalf of users using their signatures
  * @author Crutrade Team
  * @custom:security-contact security@crutrade.io
  */
-contract USDCApprovalProxy is ModifiersBase {
+contract USDCApprovalProxy is ModifiersBase, UUPSUpgradeable {
   /* CONSTANTS */
   
   /// @notice Domain name for EIP-712 signatures
   string internal constant USDC_PROXY_DOMAIN_NAME = "USDCApprovalProxy";
-  
-  /// @notice Domain version for EIP-712 signatures
-  string internal constant DEFAULT_DOMAIN_VERSION = "1";
 
   /* STATE VARIABLES */
 
@@ -31,17 +30,19 @@ contract USDCApprovalProxy is ModifiersBase {
 
   /* EVENTS */
 
+
+
   /**
-   * @notice Emitted when a user approves USDC through the proxy
-   * @param user Address of the user making the approval
+   * @notice Emitted when a permit is processed through the proxy
+   * @param owner Address of the token owner
    * @param spender Address being approved to spend tokens
-   * @param amount Amount approved
-   * @param success Whether the approval was successful
+   * @param value Amount approved
+   * @param success Whether the permit was successful
    */
-  event USDCApprovalForwarded(
-    address indexed user,
-    address indexed spender, 
-    uint256 amount,
+  event USDCPermitForwarded(
+    address indexed owner,
+    address indexed spender,
+    uint256 value,
     bool success
   );
 
@@ -61,14 +62,17 @@ contract USDCApprovalProxy is ModifiersBase {
 
   /* ERRORS */
 
-  /// @notice Thrown when trying to set zero address
-  error ZeroAddress();
-
   /// @notice Thrown when USDC token is not set
   error USDCTokenNotSet();
 
   /// @notice Thrown when payments contract is not set
   error PaymentsContractNotSet();
+
+  /// @notice Thrown when permit deadline has expired
+  error PermitExpired();
+
+  /// @notice Thrown when permit signature is invalid
+  error InvalidPermitSignature();
 
   /* INITIALIZATION */
 
@@ -94,6 +98,7 @@ contract USDCApprovalProxy is ModifiersBase {
     if (_paymentsContract == address(0)) revert ZeroAddress();
 
     __ModifiersBase_init(_roles, USDC_PROXY_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
+    __UUPSUpgradeable_init();
     
     usdcToken = _usdcToken;
     paymentsContract = _paymentsContract;
@@ -129,33 +134,60 @@ contract USDCApprovalProxy is ModifiersBase {
     emit PaymentsContractUpdated(oldPayments, _newPaymentsContract);
   }
 
-  /* MONITORING FUNCTIONS */
+  /* CORE PERMIT FUNCTIONS */
 
   /**
-   * @notice Records and verifies a user's USDC approval, emitting monitoring event
-   * @param spender Address that was approved for spending
-   * @param amount Amount that was approved
-   * @dev Call this after making a direct USDC approval to register it for monitoring
+   * @notice Processes USDC permit through the proxy
+   * @param owner Address of the token owner
+   * @param spender Address to approve for spending
+   * @param value Amount to approve
+   * @param deadline Deadline for the permit
+   * @param v Signature v component
+   * @param r Signature r component
+   * @param s Signature s component
+   * @dev Actually calls USDC.permit() to increase allowance
    */
-  function recordUSDCApproval(address spender, uint256 amount) external {
+  function permitUSDC(
+    address owner,
+    address spender, 
+    uint256 value,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external {
     if (usdcToken == address(0)) revert USDCTokenNotSet();
+    if (block.timestamp > deadline) revert PermitExpired();
     
-    // Verify that the approval actually exists
-    uint256 currentAllowance = IERC20(usdcToken).allowance(msg.sender, spender);
-    require(currentAllowance >= amount, "Approval not found or insufficient");
+    // Actually call USDC.permit() - this increases allowance
+    IERC20Permit(usdcToken).permit(owner, spender, value, deadline, v, r, s);
     
     // Emit monitoring event
-    emit USDCApprovalForwarded(msg.sender, spender, amount, true);
+    emit USDCPermitForwarded(owner, spender, value, true);
   }
 
+  /* CONVENIENCE FUNCTIONS FOR PAYMENTS */
+
   /**
-   * @notice Records approval for the payments contract after user makes direct USDC approval
-   * @param amount Amount that was approved
-   * @dev Call this after you've approved USDC for the payments contract directly
+   * @notice Processes USDC permit for the payments contract
+   * @param owner Address of the token owner
+   * @param value Amount to approve
+   * @param deadline Deadline for the permit
+   * @param v Signature v component
+   * @param r Signature r component
+   * @param s Signature s component
+   * @dev Convenience function that calls permitUSDC with payments contract
    */
-  function recordPaymentsApproval(uint256 amount) external {
+  function permitForPayments(
+    address owner,
+    uint256 value,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external {
     if (paymentsContract == address(0)) revert PaymentsContractNotSet();
-    recordUSDCApproval(paymentsContract, amount);
+    this.permitUSDC(owner, paymentsContract, value, deadline, v, r, s);
   }
 
   /* VIEW FUNCTIONS */
@@ -180,4 +212,12 @@ contract USDCApprovalProxy is ModifiersBase {
     if (paymentsContract == address(0)) revert PaymentsContractNotSet();
     return this.allowance(owner, paymentsContract);
   }
+
+  /**
+   * @dev Authorizes an upgrade to a new implementation
+   * @param newImplementation Address of the new implementation
+   */
+  function _authorizeUpgrade(
+    address newImplementation
+  ) internal override onlyRole(UPGRADER) checkAddressZero(newImplementation) {}
 }
