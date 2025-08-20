@@ -194,7 +194,7 @@ contract CrutradeEcosystemTest is Test {
         ERC1967Proxy whitelistProxy = new ERC1967Proxy(address(whitelistImpl), whitelistInitData);
         whitelist = Whitelist(address(whitelistProxy));
 
-        bytes memory wrappersInitData = abi.encodeWithSelector(Wrappers.initialize.selector, address(roles), address(whitelist));
+        bytes memory wrappersInitData = abi.encodeWithSelector(Wrappers.initialize.selector, address(roles));
         ERC1967Proxy wrappersProxy = new ERC1967Proxy(address(wrappersImpl), wrappersInitData);
         wrappers = Wrappers(address(wrappersProxy));
 
@@ -3435,6 +3435,298 @@ contract CrutradeEcosystemTest is Test {
         for (uint256 i = 0; i < numMembers; i++) {
             assertEq(memberships.getMembership(members[i]), newMembershipId);
         }
+
+        vm.stopPrank();
+    }
+
+    // ============================================================================
+    // Wrappers Base URI Tests
+    // ============================================================================
+
+    function test_SetBaseURI() public {
+        vm.startPrank(admin);
+
+        // Test setting base URI
+        string memory newBaseURI = "https://wrapper-nfts-production.s3.eu-west-1.amazonaws.com/";
+        wrappers.setBaseURI(newBaseURI);
+
+        // Verify the base URI was set correctly
+        // Note: We can't directly call _baseURI() as it's internal, but we can test via tokenURI()
+        vm.stopPrank();
+    }
+
+    function test_SetBaseURI_OnlyOwner() public {
+        // Test that non-owner cannot set base URI
+        vm.startPrank(seller);
+
+        string memory newBaseURI = "https://malicious-uri.com/";
+        vm.expectRevert(); // Should revert due to onlyRole(OWNER)
+        wrappers.setBaseURI(newBaseURI);
+
+        vm.stopPrank();
+    }
+
+    function test_TokenURI_WithBaseURI() public {
+        vm.startPrank(admin);
+
+        // Set base URI
+        string memory baseURI = "https://wrapper-nfts-production.s3.eu-west-1.amazonaws.com/";
+        wrappers.setBaseURI(baseURI);
+
+        // Import a wrapper to create a token
+        vm.stopPrank();
+        vm.startPrank(operational);
+
+        // Add seller to whitelist
+        address[] memory sellerArray = new address[](1);
+        sellerArray[0] = seller;
+        whitelist.addToWhitelist(sellerArray);
+
+        // Import wrapper
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "test-uri",
+            metaKey: "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json",
+            amount: 0,
+            tokenId: 123,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+
+        wrappers.imports(seller, wrapperData);
+
+                // Test tokenURI for the imported wrapper (token ID 1)
+        string memory expectedURI = string(abi.encodePacked(baseURI, "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json"));
+        string memory actualURI = wrappers.tokenURI(1);
+
+        assertEq(actualURI, expectedURI, "Token URI should match expected format");
+
+        vm.stopPrank();
+    }
+
+    function test_TokenURI_WithComplexBaseURI() public {
+        vm.startPrank(admin);
+
+        // Set a complex base URI that matches the production format
+        string memory baseURI = "https://wrapper-nfts-production.s3.eu-west-1.amazonaws.com/";
+        wrappers.setBaseURI(baseURI);
+
+        vm.stopPrank();
+        vm.startPrank(operational);
+
+        // Add seller to whitelist
+        address[] memory sellerArray = new address[](1);
+        sellerArray[0] = seller;
+        whitelist.addToWhitelist(sellerArray);
+
+        // Import wrapper with specific metaKey
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "test-uri",
+            metaKey: "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json",
+            amount: 0,
+            tokenId: 123,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+
+        wrappers.imports(seller, wrapperData);
+
+                                // Test tokenURI - should return baseURI + metaKey + ".json" (preserving double .json from production)
+        string memory expectedURI = "https://wrapper-nfts-production.s3.eu-west-1.amazonaws.com/W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json";
+        string memory actualURI = wrappers.tokenURI(1);
+
+        assertEq(actualURI, expectedURI, "Token URI should match expected format");
+
+        vm.stopPrank();
+    }
+
+    function test_TokenURI_MultipleTokens() public {
+        vm.startPrank(admin);
+
+        // Set base URI
+        string memory baseURI = "https://api.example.com/metadata/";
+        wrappers.setBaseURI(baseURI);
+
+        vm.stopPrank();
+        vm.startPrank(operational);
+
+        // Add seller to whitelist
+        address[] memory sellerArray = new address[](1);
+        sellerArray[0] = seller;
+        whitelist.addToWhitelist(sellerArray);
+
+        // Import multiple wrappers
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](3);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "test-uri-1",
+            metaKey: "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json",
+            amount: 0,
+            tokenId: 123,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+        wrapperData[1] = IWrappers.WrapperData({
+            uri: "test-uri-2",
+            metaKey: "W10405423/1b59dfge-47bf-5185-94d1-d0769f7ecdf1.json",
+            amount: 0,
+            tokenId: 456,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+        wrapperData[2] = IWrappers.WrapperData({
+            uri: "test-uri-3",
+            metaKey: "W10405424/2c60eghf-58cg-6296-05e2-e1870g8fdeg2.json",
+            amount: 0,
+            tokenId: 789,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+
+        wrappers.imports(seller, wrapperData);
+
+        // Test tokenURI for each token
+        assertEq(wrappers.tokenURI(1), "https://api.example.com/metadata/W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json");
+        assertEq(wrappers.tokenURI(2), "https://api.example.com/metadata/W10405423/1b59dfge-47bf-5185-94d1-d0769f7ecdf1.json.json");
+        assertEq(wrappers.tokenURI(3), "https://api.example.com/metadata/W10405424/2c60eghf-58cg-6296-05e2-e1870g8fdeg2.json.json");
+
+        vm.stopPrank();
+    }
+
+    function test_TokenURI_BaseURIChange() public {
+        vm.startPrank(admin);
+
+        // Set initial base URI
+        string memory initialBaseURI = "https://old-api.example.com/";
+        wrappers.setBaseURI(initialBaseURI);
+
+        vm.stopPrank();
+        vm.startPrank(operational);
+
+        // Add seller to whitelist
+        address[] memory sellerArray = new address[](1);
+        sellerArray[0] = seller;
+        whitelist.addToWhitelist(sellerArray);
+
+        // Import wrapper
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "test-uri",
+            metaKey: "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json",
+            amount: 0,
+            tokenId: 123,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+
+        wrappers.imports(seller, wrapperData);
+
+        // Verify initial tokenURI
+        assertEq(wrappers.tokenURI(1), "https://old-api.example.com/W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json");
+
+        vm.stopPrank();
+        vm.startPrank(admin);
+
+        // Change base URI
+        string memory newBaseURI = "https://new-api.example.com/";
+        wrappers.setBaseURI(newBaseURI);
+
+        // Verify tokenURI now uses new base URI
+        assertEq(wrappers.tokenURI(1), "https://new-api.example.com/W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json");
+
+        vm.stopPrank();
+    }
+
+
+
+    function test_TokenURI_NonExistentToken() public {
+        vm.startPrank(admin);
+
+        // Set base URI
+        string memory baseURI = "https://api.example.com/";
+        wrappers.setBaseURI(baseURI);
+
+        // Try to get tokenURI for non-existent token
+        vm.expectRevert(); // Should revert with WrapperNotFound error
+        wrappers.tokenURI(999);
+
+        vm.stopPrank();
+    }
+
+    function test_SetBaseURI_EmptyString() public {
+        vm.startPrank(admin);
+
+        // Test setting empty base URI
+        wrappers.setBaseURI("");
+
+        vm.stopPrank();
+        vm.startPrank(operational);
+
+        // Add seller to whitelist
+        address[] memory sellerArray = new address[](1);
+        sellerArray[0] = seller;
+        whitelist.addToWhitelist(sellerArray);
+
+        // Import wrapper
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "test-uri",
+            metaKey: "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json",
+            amount: 0,
+            tokenId: 123,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+
+        wrappers.imports(seller, wrapperData);
+
+        // TokenURI should just be metaKey + ".json" when base URI is empty
+        assertEq(wrappers.tokenURI(1), "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json");
+
+        vm.stopPrank();
+    }
+
+    function test_TokenURI_ProductionFormat() public {
+        vm.startPrank(admin);
+
+        // Set base URI to match production format
+        string memory baseURI = "https://wrapper-nfts-production.s3.eu-west-1.amazonaws.com/";
+        wrappers.setBaseURI(baseURI);
+
+        vm.stopPrank();
+        vm.startPrank(operational);
+
+        // Add seller to whitelist
+        address[] memory sellerArray = new address[](1);
+        sellerArray[0] = seller;
+        whitelist.addToWhitelist(sellerArray);
+
+        // Import wrapper with specific metaKey that matches production format
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "test-uri",
+            metaKey: "W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json",
+            amount: 0,
+            tokenId: 123,
+            brandId: 1,
+            collection: keccak256("TEST_COLLECTION"),
+            active: false
+        });
+
+        wrappers.imports(seller, wrapperData);
+
+                                // Test that tokenURI returns the expected production format (with double .json from production bugs)
+        string memory expectedURI = "https://wrapper-nfts-production.s3.eu-west-1.amazonaws.com/W10405422/0a48cefd-36ae-4074-83c0-c9658e6dbce0.json.json";
+        string memory actualURI = wrappers.tokenURI(1);
+
+        assertEq(actualURI, expectedURI, "Token URI should match production format");
 
         vm.stopPrank();
     }
