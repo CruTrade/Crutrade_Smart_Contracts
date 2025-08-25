@@ -38,7 +38,7 @@ contract FujiUpgrade is Script {
 
     // Step 3: Set new base URI
     console.log('\nSetting new base URI...');
-    proxy.setBaseURI(NEW_BASE_URI);
+    proxy.setHttpsBaseURI(NEW_BASE_URI);
     console.log('Base URI set successfully!');
 
     vm.stopBroadcast();

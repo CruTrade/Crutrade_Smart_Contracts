@@ -33,7 +33,8 @@ abstract contract WrapperBase is
     /// @dev Base URI for HTTPS metadata
     string internal _httpsBaseURI;
 
-    // Removed _baseURIString to maintain storage compatibility with v1.4.0
+    // Note: _baseURIString removed to maintain storage compatibility
+    // Use _httpsBaseURI for both purposes to avoid storage corruption
 
     /// @dev Maps wrapper IDs to their data
     mapping(uint256 => WrapperData) internal _wrappersById;
@@ -110,9 +111,9 @@ abstract contract WrapperBase is
         string memory symbol,
         string memory baseURI
     ) internal onlyInitializing {
+        __ERC721_init(name, symbol);
         __ERC721Pausable_init();
         __UUPSUpgradeable_init();
-        __ERC721_init(name, symbol);
         __ModifiersBase_init(_roles, WRAPPERS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
         _httpsBaseURI = baseURI;
         _nextWrapperId = 1; // Start from 1 to avoid confusion with default value

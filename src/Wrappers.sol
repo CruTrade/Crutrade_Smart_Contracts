@@ -10,6 +10,7 @@ import './interfaces/IWrappers.sol';
  * @dev Implements a wrapper system for NFTs with brand and category management
  * @author Crutrade Team
  * @custom:security-contact security@crutrade.io
+ * @custom:oz-upgrades-from src/old/Wrappers.sol:Wrappers
  */
 contract Wrappers is WrapperBase {
   /* INITIALIZATION */
@@ -46,8 +47,15 @@ contract Wrappers is WrapperBase {
     _httpsBaseURI = url;
   }
 
-  // Removed setBaseURI function to maintain storage compatibility with v1.4.0
-  // Use setHttpsBaseURI instead
+  /**
+   * @notice Sets the base URI for token metadata (alias for setHttpsBaseURI)
+   * @param newBaseURI New base URI
+   * @dev Can only be called by an account with the OWNER role
+   * @dev This is an alias for setHttpsBaseURI to maintain API compatibility
+   */
+  function setBaseURI(string calldata newBaseURI) external onlyRole(OWNER) {
+    _httpsBaseURI = newBaseURI;
+  }
 
   /**
    * @notice Sets the roles contract address
