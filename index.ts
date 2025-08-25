@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-07-12T02:38:57.633Z
+// Updated: 2025-08-14T17:01:32.147Z
 
 import type { Address } from 'viem';
 
@@ -6987,27 +6987,656 @@ export const abis = {
     "inputs": []
   }
 ] as const,
+  USDCApprovalProxy: [
+  {
+    "type": "constructor",
+    "inputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "UPGRADE_INTERFACE_VERSION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "allowance",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "spender",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDomainSeparator",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNonce",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialize",
+    "inputs": [
+      {
+        "name": "_roles",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_usdcToken",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_paymentsContract",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "paymentsAllowance",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "paymentsContract",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "permitForPayments",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "v",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "permitUSDC",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "spender",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "v",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "proxiableUUID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setPaymentsContract",
+    "inputs": [
+      {
+        "name": "_newPaymentsContract",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setUSDCToken",
+    "inputs": [
+      {
+        "name": "_newUsdcToken",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "upgradeToAndCall",
+    "inputs": [
+      {
+        "name": "newImplementation",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "data",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "usdcToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "Initialized",
+    "inputs": [
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NonceUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PaymentsContractUpdated",
+    "inputs": [
+      {
+        "name": "oldPayments",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newPayments",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RolesSet",
+    "inputs": [
+      {
+        "name": "roles",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "USDCPermitForwarded",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "spender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "value",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "success",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "USDCTokenUpdated",
+    "inputs": [
+      {
+        "name": "oldToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Upgraded",
+    "inputs": [
+      {
+        "name": "implementation",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AddressEmptyCode",
+    "inputs": [
+      {
+        "name": "target",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC1967InvalidImplementation",
+    "inputs": [
+      {
+        "name": "implementation",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC1967NonPayable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FailedInnerCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "HashAlreadyUsed",
+    "inputs": [
+      {
+        "name": "hash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidBrand",
+    "inputs": [
+      {
+        "name": "brandId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidInitialization",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidNonce",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "provided",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidPermitSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidSignature",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "actual",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotAllowed",
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotAllowedDelegate",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotInitializing",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotOwner",
+    "inputs": [
+      {
+        "name": "claimer",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "actualOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotWhitelisted",
+    "inputs": [
+      {
+        "name": "wallet",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PaymentNotAllowed",
+    "inputs": [
+      {
+        "name": "payment",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PaymentsContractNotSet",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PermitExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SignatureExpired",
+    "inputs": [
+      {
+        "name": "expiry",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "USDCTokenNotSet",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UUPSUnauthorizedCallContext",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UUPSUnsupportedProxiableUUID",
+    "inputs": [
+      {
+        "name": "slot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  }
+] as const,
 };
 
 // Contract addresses
 export const addresses = {
   mainnet: {
-    Roles: '0x69626e51ffb826bf208a1cafd0b98655bba5895c' as Address,
-    Brands: '0x45ae92acbd248508a1814bf148ed618a1f7d6029' as Address,
-    Wrappers: '0x8284f609806e938b8b65d9e0fcddedbedb0b0dce' as Address,
-    Whitelist: '0x3d5e2b9359513f94d73e4a9d7a5d37e01759065c' as Address,
-    Payments: '0xd2c9a004e1271a8c2c0ba08677112c85f6581df4' as Address,
-    Sales: '0x9ef6d7de627db2d885cb3263b387b9979964825c' as Address,
-    Memberships: '0x2fb13361dd08a75ab96276c3d65ea5ad9a5dd1e0' as Address,
+    Roles: '0xc6110825812b42d21f93ac5bc5047547870db42f' as Address,
+    Brands: '0x595327fbe563bf3fbd41a4a473e7b025af6dbd22' as Address,
+    Wrappers: '0x5c85e3b6c537e8933092c91005f6f037f8cf07f1' as Address,
+    Whitelist: '0xdb22ac112b8cbd523698d207a46847c29f6c30a5' as Address,
+    Payments: '0x921e936c7db1bd2df0f7f47926adcbf67b00b6d3' as Address,
+    Sales: '0x57aa14ba9f407785f1a0cff5bd5cb48d06304e79' as Address,
+    Memberships: '0x9b8ff464aaa24a16b47f5ef0ab5649b6e27928bd' as Address,
+    USDCApprovalProxy: '0x0000000000000000000000000000000000000000' as Address,
   },
   testnet: {
-    Roles: '0x593d561cf601e22e5de228dd83b2baff9c53feb8' as Address,
-    Brands: '0x8727f012b11cff8a997c565f39d71359a529a316' as Address,
-    Wrappers: '0xf3cdcdc5ba6b0ff9fd4ead75b18bbf66ec500d1a' as Address,
-    Whitelist: '0x868b9b43e62117b265fb830d26dbb95a489b2b62' as Address,
-    Payments: '0x83ae7be176d0ce250fdf87e5f387582ca9a2a101' as Address,
-    Sales: '0x3c1c62f8da3eb2d5931a58ee514db6de19c2038d' as Address,
-    Memberships: '0x2932ac04e28d192a994bcf1cafa9cccc261383ac' as Address,
+    Roles: '0xaa21cbdd4c4941b40082751061042784769bcc43' as Address,
+    Brands: '0x5739e2c9f4a1788115744af3c4d0d666390dfc84' as Address,
+    Wrappers: '0x75d8c1f61c2937858b87f1c89a57012cfab909aa' as Address,
+    Whitelist: '0x75c166d018995c112b820a85000a9d93a6dfca18' as Address,
+    Payments: '0x74da042deaebfb1f9bdbbbb7028ffd79a668803b' as Address,
+    Sales: '0xccb23074797c42ff18fea92173d713c6d29d2a15' as Address,
+    Memberships: '0x2b284a712665bc19d0bf0f1c9d720e36ec5e051f' as Address,
+    USDCApprovalProxy: '0x105caFd5eA93D4e318bc00B15fA3FC533C23d721' as Address,
   }
 };
 

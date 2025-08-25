@@ -11,6 +11,7 @@ import '../src/Whitelist.sol';
 import '../src/Payments.sol';
 import '../src/Sales.sol';
 import '../src/Memberships.sol';
+import '../src/USDCApprovalProxy.sol';
 import '../src/mock/MockUSDC.sol';
 import '../src/interfaces/IPayments.sol';
 
@@ -58,6 +59,7 @@ contract CrutradeDeploy is Script {
   Payments paymentsImpl;
   Sales salesImpl;
   Memberships membershipsImpl;
+  USDCApprovalProxy usdcApprovalProxyImpl;
 
   // Proxy contracts
   ERC1967Proxy rolesProxy;
@@ -67,6 +69,7 @@ contract CrutradeDeploy is Script {
   ERC1967Proxy paymentsProxy;
   ERC1967Proxy salesProxy;
   ERC1967Proxy membershipsProxy;
+  ERC1967Proxy usdcApprovalProxyProxy;
 
   /* MAIN DEPLOYMENT FUNCTION */
 
@@ -119,13 +122,16 @@ contract CrutradeDeploy is Script {
     // Step 1: Deploy all implementation contracts
     _deployImplementations();
 
-    // Step 2: Deploy all other contracts first (brands includes first brand registration)
-    _deployOtherContracts();
+    // Step 2: Deploy Roles contract first with minimal configuration
+    _deployRolesWithMinimalSetup();
 
-    // Step 3: Deploy Roles last with everything configured
-    _deployRolesWithFullSetup();
+    // Step 3: Deploy all other contracts with the correct roles address
+    _deployOtherContractsWithCorrectRoles();
 
-    // Step 4: Save deployment information
+    // Step 4: Grant contract-specific roles to the deployed contracts
+    _grantContractRoles();
+
+    // Step 5: Save deployment information
     // _saveDeployment(); // Commented out - using Foundry's broadcast instead
 
     console.log('Deploy complete - ecosystem ready!');
@@ -142,6 +148,7 @@ contract CrutradeDeploy is Script {
     console.log('   - Payments:', address(paymentsProxy));
     console.log('   - Sales:', address(salesProxy));
     console.log('   - Memberships:', address(membershipsProxy));
+    console.log('   - USDC Approval Proxy:', address(usdcApprovalProxyProxy));
   }
 
   /* DEPLOYMENT STEPS */
@@ -158,35 +165,33 @@ contract CrutradeDeploy is Script {
     paymentsImpl = new Payments();
     salesImpl = new Sales();
     membershipsImpl = new Memberships();
+    usdcApprovalProxyImpl = new USDCApprovalProxy();
     console.log('All implementation contracts deployed');
   }
 
   /**
-   * @notice Deploys all contracts except Roles with temporary configuration
-   * @dev Uses dummy roles address that will be updated when Roles is deployed
+   * @notice Deploys all contracts except Roles with the correct roles address
+   * @dev Uses the actual roles address instead of a dummy address
    */
-  function _deployOtherContracts() private {
-    // Temporary roles address for initialization
-    address dummyRoles = address(0x1);
-
-    // Get owner from environment for Brands initialization
+  function _deployOtherContractsWithCorrectRoles() private {
+    // Get owner from environment for role management
     address owner = vm.envAddress("OWNER");
 
-    // Deploy Brands with automatic first brand registration for admin
+    // Deploy Brands with correct roles address and owner for first brand registration
     brandsProxy = new ERC1967Proxy(
       address(brandsImpl),
-      abi.encodeCall(brandsImpl.initialize, (dummyRoles, owner))
+      abi.encodeCall(brandsImpl.initialize, (address(rolesProxy), owner))
     );
 
-    // Deploy other contracts with dummy roles
+    // Deploy other contracts with correct roles address
     wrappersProxy = new ERC1967Proxy(
       address(wrappersImpl),
-      abi.encodeCall(wrappersImpl.initialize, (dummyRoles))
+      abi.encodeCall(wrappersImpl.initialize, (address(rolesProxy)))
     );
 
     whitelistProxy = new ERC1967Proxy(
       address(whitelistImpl),
-      abi.encodeCall(whitelistImpl.initialize, (dummyRoles))
+      abi.encodeCall(whitelistImpl.initialize, (address(rolesProxy)))
     );
 
     // Get payments configuration from environment variables
@@ -195,122 +200,130 @@ contract CrutradeDeploy is Script {
     string memory membershipFeesJson = vm.envString("MEMBERSHIP_FEES");
 
     // Parse membership fees from JSON (simplified - in production you might want a more robust parser)
-    // For now, we'll use a simple approach with hardcoded parsing
-    // In a real implementation, you might want to use a library or more sophisticated parsing
-    IPayments.MembershipFeeConfig[] memory initialMembershipFees = _parseMembershipFees(membershipFeesJson);
+    IPayments.MembershipFeeConfig[] memory membershipFees = _parseMembershipFees(membershipFeesJson);
 
     console.log('Payments configuration:');
     console.log('  Treasury Address:', treasuryAddress);
     console.log('  Fiat Fee Percentage:', fiatFeePercentage);
-    console.log('  Membership Fees Count:', initialMembershipFees.length);
+    console.log('  Membership Fees Count:', membershipFees.length);
 
+    // Deploy Payments with correct roles address
     paymentsProxy = new ERC1967Proxy(
       address(paymentsImpl),
-      abi.encodeCall(paymentsImpl.initialize, (
-        dummyRoles,
-        treasuryAddress,
-        fiatFeePercentage,
-        initialMembershipFees
+      abi.encodeCall(paymentsImpl.initialize, (address(rolesProxy), treasuryAddress, fiatFeePercentage, membershipFees))
+    );
+
+    // Deploy Sales with correct roles address
+    salesProxy = new ERC1967Proxy(
+      address(salesImpl),
+      abi.encodeCall(salesImpl.initialize, (address(rolesProxy)))
+    );
+
+    // Deploy Memberships with correct roles address
+    membershipsProxy = new ERC1967Proxy(
+      address(membershipsImpl),
+      abi.encodeCall(membershipsImpl.initialize, (address(rolesProxy)))
+    );
+
+    // Deploy USDCApprovalProxy with correct roles address, USDC token, and payments contract
+    usdcApprovalProxyProxy = new ERC1967Proxy(
+      address(usdcApprovalProxyImpl),
+      abi.encodeCall(usdcApprovalProxyImpl.initialize, (
+        address(rolesProxy),
+        usdcAddress,
+        address(paymentsProxy)
       ))
     );
 
-    salesProxy = new ERC1967Proxy(
-      address(salesImpl),
-      abi.encodeCall(salesImpl.initialize, (dummyRoles))
-    );
-
-    membershipsProxy = new ERC1967Proxy(
-      address(membershipsImpl),
-      abi.encodeCall(membershipsImpl.initialize, (dummyRoles))
-    );
-
-    console.log('All other contracts deployed (first brand registered)');
+    console.log('All other contracts deployed with correct roles address (first brand registered)');
   }
 
   /**
-   * @notice Deploys Roles contract with complete ecosystem configuration
-   * @dev This is the final step that configures all roles, delegates, and payments
+   * @notice Deploys Roles contract with minimal configuration
+   * @dev This follows the initialDeploy pattern - deploy with minimal config, then configure separately
    */
-  function _deployRolesWithFullSetup() private {
+  function _deployRolesWithMinimalSetup() private {
     // Get roles configuration from environment variables
     address owner = vm.envAddress("OWNER");
     address operational1 = vm.envAddress("OPERATIONAL_1");
     address operational2 = vm.envAddress("OPERATIONAL_2");
-    address treasury = vm.envAddress("TREASURY");
-    address fiat = vm.envAddress("FIAT");
-    address pauser = vm.envAddress("PAUSER");
-    address upgrader = vm.envAddress("UPGRADER");
 
     console.log('Roles configuration:');
     console.log('  Owner:', owner);
     console.log('  Operational 1:', operational1);
     console.log('  Operational 2:', operational2);
-    console.log('  Treasury:', treasury);
-    console.log('  Fiat:', fiat);
-    console.log('  Pauser:', pauser);
-    console.log('  Upgrader:', upgrader);
-
-    // Determine USDT address based on chain
-    address usdtAddress = block.chainid == 43113
-      ? 0xd495C61A12f0E67E0F293E9DAC4772Acb457d287  // Fuji testnet
-      : 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E; // Avalanche mainnet
 
     // Prepare operational addresses array
     address[] memory operationalAddresses = new address[](2);
     operationalAddresses[0] = operational1;
     operationalAddresses[1] = operational2;
 
-    // Prepare contract addresses in specific order
-    address[] memory contractAddresses = new address[](6);
-    contractAddresses[0] = address(brandsProxy);      // index 0
-    contractAddresses[1] = address(wrappersProxy);    // index 1
-    contractAddresses[2] = address(whitelistProxy);   // index 2
-    contractAddresses[3] = address(paymentsProxy);    // index 3
-    contractAddresses[4] = address(salesProxy);       // index 4
-    contractAddresses[5] = address(membershipsProxy); // index 5
+    // User roles to grant to admin (following initialDeploy pattern)
+    bytes32[] memory userRoles = new bytes32[](6);
+    userRoles[0] = keccak256('OWNER');
+    userRoles[1] = keccak256('OPERATIONAL');
+    userRoles[2] = keccak256('TREASURY');
+    userRoles[3] = keccak256('FIAT');
+    userRoles[4] = keccak256('PAUSER');
+    userRoles[5] = keccak256('UPGRADER');
 
-    // User roles to grant to admin (multisig)
-    bytes32[] memory userRoles = new bytes32[](5);
-    userRoles[0] = keccak256('FIAT');      // Financial operations
-    userRoles[1] = keccak256('OWNER');     // Ownership functions
-    userRoles[2] = keccak256('PAUSER');    // Emergency pause
-    userRoles[3] = keccak256('UPGRADER');  // Contract upgrades
-    userRoles[4] = keccak256('TREASURY');  // Treasury management
-
-    // Contract-specific roles (matches contractAddresses order)
-    bytes32[] memory contractRoles = new bytes32[](6);
-    contractRoles[0] = keccak256('BRANDS');      // Brands contract role
-    contractRoles[1] = keccak256('WRAPPERS');    // Wrappers contract role
-    contractRoles[2] = keccak256('WHITELIST');   // Whitelist contract role
-    contractRoles[3] = keccak256('PAYMENTS');    // Payments contract role
-    contractRoles[4] = keccak256('SALES');       // Sales contract role
-    contractRoles[5] = keccak256('MEMBERSHIPS'); // Memberships contract role
-
-    // Indices of contracts that need delegate roles
-    uint256[] memory delegateIndices = new uint256[](3);
-    delegateIndices[0] = 1; // wrappers (index 1)
-    delegateIndices[1] = 3; // payments (index 3)
-    delegateIndices[2] = 4; // sales (index 4)
-
-    // Deploy Roles with complete configuration
+    // Deploy Roles with minimal configuration (empty contract addresses for now)
     rolesProxy = new ERC1967Proxy(
       address(rolesImpl),
       abi.encodeCall(rolesImpl.initialize, (
         owner,
-        usdtAddress,
+        usdcAddress,
         operationalAddresses,
-        contractAddresses,
+        new address[](0), // contractAddresses - empty for now
         userRoles,
-        contractRoles,
-        delegateIndices
+        new bytes32[](0), // contractRoles - empty for now
+        new uint256[](0)  // delegateIndices - empty for now
       ))
     );
 
-    console.log('Roles deployed with complete ecosystem setup:');
-    console.log('   - All user roles assigned to multisig');
-    console.log('   - All contract roles assigned');
-    console.log('   - All delegate roles granted');
-    console.log('   - USDT payment configured');
+    console.log('Roles deployed with minimal setup:');
+    console.log('   - User roles assigned to admin');
+    console.log('   - Operational roles assigned');
+    console.log('   - Contract roles will be granted after deployment');
+  }
+
+  /**
+   * @notice Grants contract-specific roles to the deployed contracts
+   * @dev This function is called after all contracts are deployed to ensure correct role delegation
+   */
+  function _grantContractRoles() private {
+    console.log('Granting contract-specific roles...');
+
+    // Grant contract-specific roles to contracts directly (deployer is admin)
+    Roles(address(rolesProxy)).grantRole(keccak256('WHITELIST'), address(whitelistProxy));
+    console.log('   - WHITELIST role granted to Whitelist contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('WRAPPERS'), address(wrappersProxy));
+    console.log('   - WRAPPERS role granted to Wrappers contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('BRANDS'), address(brandsProxy));
+    console.log('   - BRANDS role granted to Brands contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('PAYMENTS'), address(paymentsProxy));
+    console.log('   - PAYMENTS role granted to Payments contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('SALES'), address(salesProxy));
+    console.log('   - SALES role granted to Sales contract');
+
+    Roles(address(rolesProxy)).grantRole(keccak256('MEMBERSHIPS'), address(membershipsProxy));
+    console.log('   - MEMBERSHIPS role granted to Memberships contract');
+
+    // Grant delegate roles to contracts that need them
+    Roles(address(rolesProxy)).grantDelegateRole(address(wrappersProxy));
+    console.log('   - Delegate role granted to Wrappers contract');
+
+    Roles(address(rolesProxy)).grantDelegateRole(address(paymentsProxy));
+    console.log('   - Delegate role granted to Payments contract');
+
+    Roles(address(rolesProxy)).grantDelegateRole(address(salesProxy));
+    console.log('   - Delegate role granted to Sales contract');
+
+    console.log('All contract roles granted successfully');
   }
 
   /**

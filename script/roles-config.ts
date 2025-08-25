@@ -50,8 +50,8 @@ export interface NetworkConfig {
  */
 export const LOCAL_ROLES_CONFIG: RoleConfig = {
   owner: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  operational1: "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC",
-  operational2: "0xe812BeeF1F7A62ed142835Ec2622B71AeA858085",
+  operational1: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Anvil Address #1 - used in test scripts
+  operational2: "0x5Ad66a6D9D45a5229240D4d88d225969e10c92eC", // Anvil Address #2
   treasury: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
   fiat: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
   pauser: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", // Same as owner for local
