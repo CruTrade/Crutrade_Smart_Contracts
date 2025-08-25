@@ -47,6 +47,15 @@ contract Wrappers is WrapperBase {
   }
 
   /**
+   * @notice Sets the base URI for token metadata
+   * @param newBaseURI New base URI
+   * @dev Can only be called by an account with the OWNER role
+   */
+  function setBaseURI(string calldata newBaseURI) external onlyRole(OWNER) {
+    _baseURIString = newBaseURI;
+  }
+
+  /**
    * @notice Sets the roles contract address
    * @param _roles Address of the new roles contract
    * @dev Can only be called by an account with the OWNER role

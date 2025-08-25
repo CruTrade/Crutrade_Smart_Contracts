@@ -33,6 +33,9 @@ abstract contract WrapperBase is
     /// @dev Base URI for HTTPS metadata
     string internal _httpsBaseURI;
 
+    /// @dev Base URI for token metadata
+    string internal _baseURIString;
+
     /// @dev Maps wrapper IDs to their data
     mapping(uint256 => WrapperData) internal _wrappersById;
 
@@ -113,6 +116,7 @@ abstract contract WrapperBase is
         __ERC721_init(name, symbol);
         __ModifiersBase_init(_roles, WRAPPERS_DOMAIN_NAME, DEFAULT_DOMAIN_VERSION);
         _httpsBaseURI = baseURI;
+        _baseURIString = baseURI; // Note: This only affects new deployments, not upgrades
         _nextWrapperId = 1; // Start from 1 to avoid confusion with default value
     }
 
@@ -260,7 +264,7 @@ abstract contract WrapperBase is
     ) public view override returns (string memory) {
         if (_wrappersById[tokenId].collection == bytes32(0))
             revert WrapperNotFound(tokenId);
-        return string(abi.encodePacked(_baseURI(), _toString(tokenId), '.json'));
+        return string(abi.encodePacked(_baseURI(), _wrappersById[tokenId].metaKey, '.json'));
     }
 
     /**
@@ -278,6 +282,13 @@ abstract contract WrapperBase is
             string(
                 abi.encodePacked(_httpsBaseURI, _wrappersById[tokenId].metaKey, '.json')
             );
+    }
+
+    /**
+     * @dev Returns the base URI for token metadata
+     */
+    function _baseURI() internal view override returns (string memory) {
+        return _baseURIString;
     }
 
     /**

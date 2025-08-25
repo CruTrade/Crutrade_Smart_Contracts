@@ -19,6 +19,6 @@
     "declaration": true,
     "outDir": "./dist"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "script", "update-package.ts"],
   "exclude": ["node_modules"]
 }
