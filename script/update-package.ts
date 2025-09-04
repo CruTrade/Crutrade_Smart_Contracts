@@ -2,7 +2,7 @@
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-const contracts = ['Roles', 'Brands', 'Wrappers', 'Whitelist', 'Payments', 'Sales', 'Memberships'] as const;
+const contracts = ['Roles', 'Brands', 'Wrappers', 'Whitelist', 'Payments', 'Sales', 'Memberships', 'USDCApprovalProxy'] as const;
 
 async function loadAbi(contractName: string) {
   const abiPath = resolve(`out/${contractName}.sol/${contractName}.json`);
@@ -23,7 +23,8 @@ function loadDeployments() {
   const mainnetPath = resolve('deployments/mainnet/latest.json');
   if (existsSync(mainnetPath)) {
     try {
-      deployments.mainnet = JSON.parse(readFileSync(mainnetPath, 'utf8'));
+      const mainnetData = JSON.parse(readFileSync(mainnetPath, 'utf8'));
+      deployments.mainnet = mainnetData.contracts || {};
     } catch {}
   }
   
@@ -31,7 +32,8 @@ function loadDeployments() {
   const testnetPath = resolve('deployments/testnet/latest.json');
   if (existsSync(testnetPath)) {
     try {
-      deployments.testnet = JSON.parse(readFileSync(testnetPath, 'utf8'));
+      const testnetData = JSON.parse(readFileSync(testnetPath, 'utf8'));
+      deployments.testnet = testnetData.contracts || {};
     } catch {}
   }
   
