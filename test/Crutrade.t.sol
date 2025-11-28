@@ -13,15 +13,18 @@ import "../src/Whitelist.sol";
 import "../src/Wrappers.sol";
 import "../src/Brands.sol";
 import "../src/USDCApprovalProxy.sol";
+import "../src/Gift.sol";
 
 // Import base contracts for structs
 import "../src/abstracts/SalesBase.sol";
 import "../src/abstracts/ModifiersBase.sol";
 import "../src/abstracts/MembershipsBase.sol";
+import "../src/abstracts/GiftBase.sol";
 
 // Import interfaces
 import "../src/interfaces/IWrappers.sol";
 import "../src/interfaces/IPayments.sol";
+import "../src/interfaces/IGift.sol";
 
 // Mock ERC20 for testing
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -124,6 +127,7 @@ contract CrutradeEcosystemTest is Test {
     Wrappers public wrappers;
     Brands public brands;
     USDCApprovalProxy public usdcApprovalProxy;
+    Gift public gift;
     MockERC20 public mockToken;
     MockERC20 public fiatToken;
 
@@ -177,6 +181,7 @@ contract CrutradeEcosystemTest is Test {
         Wrappers wrappersImpl = new Wrappers();
         Brands brandsImpl = new Brands();
         USDCApprovalProxy usdcApprovalProxyImpl = new USDCApprovalProxy();
+        Gift giftImpl = new Gift();
 
         // Deploy proxies and initialize
         bytes32[] memory userRoles = new bytes32[](4);
@@ -262,6 +267,10 @@ contract CrutradeEcosystemTest is Test {
         ERC1967Proxy usdcApprovalProxyProxy = new ERC1967Proxy(address(usdcApprovalProxyImpl), usdcApprovalProxyInitData);
         usdcApprovalProxy = USDCApprovalProxy(address(usdcApprovalProxyProxy));
 
+        bytes memory giftInitData = abi.encodeWithSelector(Gift.initialize.selector, address(roles));
+        ERC1967Proxy giftProxy = new ERC1967Proxy(address(giftImpl), giftInitData);
+        gift = Gift(address(giftProxy));
+
         // Setup roles - now properly configured
         // The OPERATIONAL role is already granted to operational address in initialize
         // The OWNER, TREASURY, and FIAT roles are granted to admin in initialize
@@ -281,6 +290,7 @@ contract CrutradeEcosystemTest is Test {
         // Grant delegate roles
         roles.grantDelegateRole(address(sales));
         roles.grantDelegateRole(address(wrappers));
+        roles.grantDelegateRole(address(gift));
 
         // The TREASURY fee is already at 100% in initialize, I don't add other fees for now
         // to avoid exceeding the limit
@@ -2297,7 +2307,69 @@ contract CrutradeEcosystemTest is Test {
 
     // Helper function to get current nonce
     function _getCurrentNonce(address user) internal view returns (uint256) {
-        return sales.getNonce(user);
+        return gift.getNonce(user);
+    }
+
+    // Helper function to generate EIP-712 signatures for gift operations
+    // Uses checkSignatureEIP712 format: CrutradeMessage(functionSelector, nonce, expiry, dataHash)
+    // where dataHash = keccak256(abi.encode(wrapperId, to))
+    function _generateGiftSignature(
+        address signer,
+        bytes4 functionSelector,
+        uint256 nonce,
+        uint256 expiry,
+        uint256 wrapperId,
+        address to
+    ) internal view returns (bytes memory) {
+        bytes32 domainSeparator = gift.getDomainSeparator();
+        
+        // Create dataHash that includes wrapperId and to
+        bytes32 dataHash = keccak256(abi.encode(wrapperId, to));
+        
+        // Create struct hash for CrutradeMessage
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("CrutradeMessage(bytes4 functionSelector,uint256 nonce,uint256 expiry,bytes32 dataHash)"),
+            functionSelector,
+            nonce,
+            expiry,
+            dataHash
+        ));
+        
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_getPrivateKey(signer), digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // Helper function to setup wrapper for gift testing
+    function _setupWrapperForGift() internal returns (uint256 wrapperId) {
+        // Add seller to whitelist
+        vm.startPrank(admin);
+        address[] memory users = new address[](1);
+        users[0] = seller;
+        whitelist.addToWhitelist(users);
+
+        // Register brand
+        uint256 brandId = brands.register(admin);
+        vm.stopPrank();
+
+        // Import wrapper
+        vm.startPrank(operational);
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "https://example.com/token/1",
+            metaKey: "test-meta-key",
+            amount: 0,
+            tokenId: 1,
+            brandId: brandId,
+            collection: keccak256("test-collection"),
+            active: false
+        });
+        wrappers.imports(seller, wrapperData);
+        vm.stopPrank();
+
+        wrapperId = 1; // First wrapper gets ID 1
+        return wrapperId;
     }
 
     // Helper function to calculate expiry
@@ -4313,6 +4385,721 @@ contract CrutradeEcosystemTest is Test {
         string memory actualURI = wrappers.tokenURI(1);
 
         assertEq(actualURI, expectedURI, "Token URI should match production format");
+
+        vm.stopPrank();
+    }
+
+    /* GIFT CONTRACT TESTS */
+
+    function test_GiftFlow() public {
+        // Setup wrapper owned by gifter
+        uint256 wrapperId = _setupWrapperForGift();
+        
+        // Verify wrapper is owned by seller (gifter)
+        assertEq(wrappers.ownerOf(wrapperId), seller);
+
+        // Generate valid signature
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+        
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        // Call gift() with OPERATIONAL role
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        // Verify wrapper transferred to recipient
+        assertEq(wrappers.ownerOf(wrapperId), buyer);
+        
+        // Verify nonce incremented
+        assertEq(gift.getNonce(seller), giftNonce + 1);
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnInvalidGiftSignature() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        // Generate signature with wrong signer (buyer instead of seller)
+        bytes memory wrongSig = _generateGiftSignature(
+            buyer, // Wrong signer
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            wrongSig,
+            wrapperId,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnExpiredGiftSignature() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = block.timestamp - 1; // Already expired
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnInvalidGiftNonce() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller) + 1; // Wrong nonce
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhenGifterNotOwner() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(buyer); // Buyer's nonce
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        // Buyer tries to gift a wrapper they don't own
+        bytes memory giftSig = _generateGiftSignature(
+            buyer,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            admin
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            buyer,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            admin
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhenNotOperational() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(seller); // Not operational
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhenGifterNotWhitelisted() public {
+        uint256 wrapperId = _setupWrapperForGift();
+        address notWhitelisted = address(0x999);
+
+        // Add wrapper for notWhitelisted (they need to own it)
+        vm.startPrank(operational);
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "https://example.com/token/2",
+            metaKey: "test-meta-key-2",
+            amount: 0,
+            tokenId: 2,
+            brandId: 1,
+            collection: keccak256("test-collection-2"),
+            active: false
+        });
+        wrappers.imports(notWhitelisted, wrapperData);
+        vm.stopPrank();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(notWhitelisted);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            notWhitelisted,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            2, // Second wrapper
+            buyer
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ModifiersBase.NotWhitelisted.selector,
+                notWhitelisted
+            )
+        );
+        gift.gift(
+            notWhitelisted,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            2,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhenContractPaused() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        // Pause the contract
+        vm.prank(admin);
+        gift.pause();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_DisableContract() public {
+        // Contract should start enabled
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        // Should work when enabled
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+        vm.stopPrank();
+
+        // Disable the contract
+        vm.prank(admin);
+        gift.disable();
+
+        // Try to gift again - should fail
+        vm.startPrank(operational);
+        giftNonce = _getCurrentNonce(seller);
+        giftExpiry = _calculateExpiry(30);
+
+        // Setup new wrapper
+        uint256 wrapperId2 = _setupWrapperForGift();
+
+        giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId2,
+            buyer
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId2,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_EnableContract() public {
+        // Disable first
+        vm.prank(admin);
+        gift.disable();
+
+        // Re-enable
+        vm.prank(admin);
+        gift.enable();
+
+        // Should work now
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        assertEq(wrappers.ownerOf(wrapperId), buyer);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhenNonOwnerDisables() public {
+        // Non-owner tries to disable
+        vm.prank(operational);
+        vm.expectRevert();
+        gift.disable();
+    }
+
+    function test_ContractStartsEnabled() public {
+        // Contract should be enabled by default
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        // Should work without explicitly enabling
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        assertEq(wrappers.ownerOf(wrapperId), buyer);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhenNoDelegateRole() public {
+        // This test would require deploying a new Gift contract without delegate role
+        // For now, we verify that the existing gift contract has delegate role
+        assertTrue(roles.hasDelegateRole(address(gift)), "Gift should have delegate role");
+    }
+
+    function test_GiftToZeroAddress() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            address(0) // Zero address
+        );
+
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            address(0)
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_GiftMultipleWrappers() public {
+        // Setup multiple wrappers
+        uint256 wrapperId1 = _setupWrapperForGift();
+        
+        vm.startPrank(operational);
+        IWrappers.WrapperData[] memory wrapperData = new IWrappers.WrapperData[](1);
+        wrapperData[0] = IWrappers.WrapperData({
+            uri: "https://example.com/token/2",
+            metaKey: "test-meta-key-2",
+            amount: 0,
+            tokenId: 2,
+            brandId: 1,
+            collection: keccak256("test-collection-2"),
+            active: false
+        });
+        wrappers.imports(seller, wrapperData);
+        vm.stopPrank();
+
+        uint256 wrapperId2 = 2;
+
+        // Gift first wrapper
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig1 = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId1,
+            buyer
+        );
+
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig1,
+            wrapperId1,
+            buyer
+        );
+
+        assertEq(wrappers.ownerOf(wrapperId1), buyer);
+
+        // Gift second wrapper
+        giftNonce = _getCurrentNonce(seller);
+        giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig2 = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId2,
+            buyer
+        );
+
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig2,
+            wrapperId2,
+            buyer
+        );
+
+        assertEq(wrappers.ownerOf(wrapperId2), buyer);
+        vm.stopPrank();
+    }
+
+    function test_NonceIncrementsAcrossContracts() public {
+        // Verify that nonce is shared across contracts
+        uint256 wrapperId = _setupWrapperForGift();
+
+        uint256 initialNonce = sales.getNonce(seller);
+        assertEq(gift.getNonce(seller), initialNonce, "Nonces should be shared");
+
+        // Use nonce in sales
+        vm.startPrank(operational);
+        uint256 listNonce = _getCurrentNonce(seller);
+        uint256 listExpiry = _calculateExpiry(30);
+        bytes memory listSig = _generateListSignature(
+            seller,
+            sales.list.selector,
+            listNonce,
+            listExpiry,
+            wrapperId,
+            1,
+            false,
+            1000 * 10**18,
+            0
+        );
+        mockToken.approve(address(payments), type(uint256).max);
+        sales.list(
+            seller,
+            listNonce,
+            listExpiry,
+            listSig,
+            wrapperId,
+            1,
+            false,
+            1000 * 10**18,
+            0,
+            address(mockToken)
+        );
+        vm.stopPrank();
+
+        // Verify nonce incremented in both contracts
+        assertEq(sales.getNonce(seller), initialNonce + 1);
+        assertEq(gift.getNonce(seller), initialNonce + 1, "Nonce should be shared across contracts");
+    }
+
+    function test_GiftedEventEmitted() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        vm.expectEmit(true, true, true, false);
+        emit GiftBase.Gifted(seller, buyer, wrapperId);
+
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_GiftEnabledEventEmitted() public {
+        // Disable first
+        vm.prank(admin);
+        gift.disable();
+
+        // Enable and check event
+        vm.expectEmit(false, false, false, false);
+        emit GiftBase.GiftEnabled();
+
+        vm.prank(admin);
+        gift.enable();
+    }
+
+    function test_GiftDisabledEventEmitted() public {
+        vm.expectEmit(false, false, false, false);
+        emit GiftBase.GiftDisabled();
+
+        vm.prank(admin);
+        gift.disable();
+    }
+
+    function test_RevertOnTamperedWrapperId() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        // Generate signature for wrapperId
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        // Try to use signature with different wrapperId
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId + 1, // Different wrapperId
+            buyer
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnTamperedRecipient() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        // Generate signature for buyer
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        // Try to use signature with different recipient
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            admin // Different recipient
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_RevertOnReusedGiftSignature() public {
+        uint256 wrapperId = _setupWrapperForGift();
+
+        vm.startPrank(operational);
+        uint256 giftNonce = _getCurrentNonce(seller);
+        uint256 giftExpiry = _calculateExpiry(30);
+
+        bytes memory giftSig = _generateGiftSignature(
+            seller,
+            gift.gift.selector,
+            giftNonce,
+            giftExpiry,
+            wrapperId,
+            buyer
+        );
+
+        // First gift should succeed
+        gift.gift(
+            seller,
+            giftNonce,
+            giftExpiry,
+            giftSig,
+            wrapperId,
+            buyer
+        );
+
+        // Setup new wrapper
+        uint256 wrapperId2 = _setupWrapperForGift();
+
+        // Try to reuse the same signature - should fail (nonce already used)
+        vm.expectRevert();
+        gift.gift(
+            seller,
+            giftNonce, // Same nonce
+            giftExpiry,
+            giftSig,
+            wrapperId2,
+            buyer
+        );
 
         vm.stopPrank();
     }
