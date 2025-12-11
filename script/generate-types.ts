@@ -11,6 +11,7 @@ const contracts = [
   "Payments",
   "Sales",
   "Memberships",
+  "Gift",
   "USDCApprovalProxy",
 ] as const;
 

@@ -101,11 +101,12 @@ async function getContractAddress(contractName: string): Promise<string> {
       }
 
       // Map proxy addresses to contract types based on deployment order
-      // The order should be: Roles, Brands, Wrappers, Whitelist, Payments, Sales, Memberships
+      // The order should be: Roles, Brands, Wrappers, Gift, Whitelist, Payments, Sales, Memberships
       const contractOrder = [
         "Roles",
         "Brands",
         "Wrappers",
+        "Gift",
         "Whitelist",
         "Payments",
         "Sales",

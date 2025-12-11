@@ -573,6 +573,19 @@ const _abi = [
   },
   {
     type: "function",
+    name: "setBaseURI",
+    inputs: [
+      {
+        name: "newBaseURI",
+        type: "string",
+        internalType: "string",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "setHttpsBaseURI",
     inputs: [
       {

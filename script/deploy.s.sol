@@ -11,6 +11,7 @@ import '../src/Whitelist.sol';
 import '../src/Payments.sol';
 import '../src/Sales.sol';
 import '../src/Memberships.sol';
+import '../src/Gift.sol';
 import '../src/USDCApprovalProxy.sol';
 import '../src/mock/MockUSDC.sol';
 import '../src/interfaces/IPayments.sol';
@@ -59,6 +60,7 @@ contract CrutradeDeploy is Script {
   Payments paymentsImpl;
   Sales salesImpl;
   Memberships membershipsImpl;
+  Gift giftImpl;
   USDCApprovalProxy usdcApprovalProxyImpl;
 
   // Proxy contracts
@@ -69,6 +71,7 @@ contract CrutradeDeploy is Script {
   ERC1967Proxy paymentsProxy;
   ERC1967Proxy salesProxy;
   ERC1967Proxy membershipsProxy;
+  ERC1967Proxy giftProxy;
   ERC1967Proxy usdcApprovalProxyProxy;
 
   /* MAIN DEPLOYMENT FUNCTION */
@@ -148,6 +151,7 @@ contract CrutradeDeploy is Script {
     console.log('   - Payments:', address(paymentsProxy));
     console.log('   - Sales:', address(salesProxy));
     console.log('   - Memberships:', address(membershipsProxy));
+    console.log('   - Gift:', address(giftProxy));
     console.log('   - USDC Approval Proxy:', address(usdcApprovalProxyProxy));
   }
 
@@ -165,6 +169,7 @@ contract CrutradeDeploy is Script {
     paymentsImpl = new Payments();
     salesImpl = new Sales();
     membershipsImpl = new Memberships();
+    giftImpl = new Gift();
     usdcApprovalProxyImpl = new USDCApprovalProxy();
     console.log('All implementation contracts deployed');
   }
@@ -187,6 +192,11 @@ contract CrutradeDeploy is Script {
     wrappersProxy = new ERC1967Proxy(
       address(wrappersImpl),
       abi.encodeCall(wrappersImpl.initialize, (address(rolesProxy)))
+    );
+
+    giftProxy = new ERC1967Proxy(
+      address(giftImpl),
+      abi.encodeCall(giftImpl.initialize, (address(rolesProxy)))
     );
 
     whitelistProxy = new ERC1967Proxy(

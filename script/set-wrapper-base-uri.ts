@@ -54,6 +54,7 @@ function getContractAddress(environment: string): string {
       "Roles",
       "Brands",
       "Wrappers",
+      "Gift",
       "Whitelist",
       "Payments",
       "Sales",

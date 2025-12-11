@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { Brands } from "./Brands";
+export type { Gift } from "./Gift";
 export type { Memberships } from "./Memberships";
 export type { Payments } from "./Payments";
 export type { Roles } from "./Roles";
@@ -11,6 +12,7 @@ export type { Whitelist } from "./Whitelist";
 export type { Wrappers } from "./Wrappers";
 export * as factories from "./factories";
 export { Brands__factory } from "./factories/Brands__factory";
+export { Gift__factory } from "./factories/Gift__factory";
 export { Memberships__factory } from "./factories/Memberships__factory";
 export { Payments__factory } from "./factories/Payments__factory";
 export { Roles__factory } from "./factories/Roles__factory";

@@ -9,6 +9,7 @@ const contracts = [
   "Payments",
   "Sales",
   "Memberships",
+  "Gift",
   "USDCApprovalProxy"
 ];
 
@@ -52,6 +53,7 @@ function extractAddressesFromBroadcast(
             contractName === "payments" || 
             contractName === "sales" || 
             contractName === "memberships" ||
+            contractName === "gift" ||
             contractName === "usdcapprovalproxy") {
           
           const implementationAddress = tx.contractAddress.toLowerCase();

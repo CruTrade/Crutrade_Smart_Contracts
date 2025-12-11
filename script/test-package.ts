@@ -57,7 +57,7 @@ const runtimeTest = `
 import { getContract, addresses, abis } from "@crutrade/contracts";
 
 // Test all contracts
-const contracts = ["Roles", "Brands", "Wrappers", "Whitelist", "Payments", "Sales", "Memberships", "USDCApprovalProxy"];
+const contracts = ["Roles", "Brands", "Wrappers", "Whitelist", "Payments", "Sales", "Memberships", "Gift", "USDCApprovalProxy"];
 
 console.log("✅ Testing all contracts...");
 
@@ -87,6 +87,7 @@ import {
   Whitelist__factory, 
   Payments__factory, 
   Memberships__factory,
+  Gift__factory,
   USDCApprovalProxy__factory 
 } from "@crutrade/contracts/types";
 
@@ -98,6 +99,7 @@ const whitelistConfig = getContract("Whitelist", "testnet");
 const paymentsConfig = getContract("Payments", "testnet");
 const salesConfig = getContract("Sales", "testnet");
 const membershipsConfig = getContract("Memberships", "testnet");
+const giftConfig = getContract("Gift", "testnet");
 const usdcApprovalProxyConfig = getContract("USDCApprovalProxy", "testnet");
 
 console.log("✅ All contracts accessible via getContract");
@@ -110,6 +112,7 @@ const wrappersFactory: Wrappers__factory = Wrappers__factory;
 const whitelistFactory: Whitelist__factory = Whitelist__factory;
 const paymentsFactory: Payments__factory = Payments__factory;
 const membershipsFactory: Memberships__factory = Memberships__factory;
+const giftFactory: Gift__factory = Gift__factory;
 const usdcApprovalProxyFactory: USDCApprovalProxy__factory = USDCApprovalProxy__factory;
 
 console.log("✅ TypeScript test passed!");

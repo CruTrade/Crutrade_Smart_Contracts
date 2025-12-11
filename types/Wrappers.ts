@@ -95,6 +95,7 @@ export interface WrappersInterface extends Interface {
       | "safeTransferFrom(address,address,uint256)"
       | "safeTransferFrom(address,address,uint256,bytes)"
       | "setApprovalForAll"
+      | "setBaseURI"
       | "setHttpsBaseURI"
       | "setRoles"
       | "supportsInterface"
@@ -213,6 +214,7 @@ export interface WrappersInterface extends Interface {
     functionFragment: "setApprovalForAll",
     values: [AddressLike, boolean]
   ): string;
+  encodeFunctionData(functionFragment: "setBaseURI", values: [string]): string;
   encodeFunctionData(
     functionFragment: "setHttpsBaseURI",
     values: [string]
@@ -310,6 +312,7 @@ export interface WrappersInterface extends Interface {
     functionFragment: "setApprovalForAll",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "setBaseURI", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "setHttpsBaseURI",
     data: BytesLike
@@ -681,6 +684,8 @@ export interface Wrappers extends BaseContract {
     "nonpayable"
   >;
 
+  setBaseURI: TypedContractMethod<[newBaseURI: string], [void], "nonpayable">;
+
   setHttpsBaseURI: TypedContractMethod<[url: string], [void], "nonpayable">;
 
   setRoles: TypedContractMethod<[_roles: AddressLike], [void], "nonpayable">;
@@ -841,6 +846,9 @@ export interface Wrappers extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "setBaseURI"
+  ): TypedContractMethod<[newBaseURI: string], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setHttpsBaseURI"
   ): TypedContractMethod<[url: string], [void], "nonpayable">;

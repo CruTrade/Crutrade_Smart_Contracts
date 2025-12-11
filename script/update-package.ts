@@ -2,7 +2,7 @@
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-const contracts = ['Roles', 'Brands', 'Wrappers', 'Whitelist', 'Payments', 'Sales', 'Memberships', 'USDCApprovalProxy'] as const;
+const contracts = ['Roles', 'Brands', 'Wrappers', 'Whitelist', 'Payments', 'Sales', 'Memberships', 'Gift', 'USDCApprovalProxy'] as const;
 
 async function loadAbi(contractName: string) {
   const abiPath = resolve(`out/${contractName}.sol/${contractName}.json`);

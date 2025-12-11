@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export { Brands__factory } from "./Brands__factory";
+export { Gift__factory } from "./Gift__factory";
 export { Memberships__factory } from "./Memberships__factory";
 export { Payments__factory } from "./Payments__factory";
 export { Roles__factory } from "./Roles__factory";
