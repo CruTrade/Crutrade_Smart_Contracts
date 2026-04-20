@@ -5,6 +5,7 @@ import 'forge-std/Script.sol';
 import 'forge-std/console.sol';
 
 import '../src/Gift.sol';
+import '../src/Roles.sol';
 import '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 
 /**
@@ -58,16 +59,22 @@ contract DeployGift is Script {
     }
 
     function _deployGift(uint256 deployerPrivateKey, string memory network, address rolesAddress) internal {
+        require(rolesAddress != address(0), "Invalid roles address: address(0)");
+        
         vm.startBroadcast(deployerPrivateKey);
 
         console.log('Deploying Gift Contract...');
+        console.log('Network:', network);
         console.log('Roles address:', rolesAddress);
 
         // Step 1: Deploy implementation contract
+        console.log('\nStep 1: Deploying Gift implementation...');
         giftImpl = new Gift();
-        console.log('Gift implementation deployed at:', address(giftImpl));
+        require(address(giftImpl) != address(0), "Failed to deploy Gift implementation");
+        console.log('   Gift implementation deployed at:', address(giftImpl));
 
         // Step 2: Deploy proxy contract
+        console.log('\nStep 2: Deploying Gift proxy...');
         bytes memory initData = abi.encodeCall(
             giftImpl.initialize,
             (rolesAddress)
@@ -75,16 +82,42 @@ contract DeployGift is Script {
 
         giftProxy = new ERC1967Proxy(address(giftImpl), initData);
         giftContract = Gift(address(giftProxy));
+        require(address(giftProxy) != address(0), "Failed to deploy Gift proxy");
+        console.log('   Gift proxy deployed at:', address(giftProxy));
+
+        // Step 3: Grant delegate role to Gift contract
+        console.log('\nStep 3: Granting delegate role to Gift contract...');
+        Roles roles = Roles(rolesAddress);
         
-        console.log('Gift proxy deployed at:', address(giftProxy));
+        // Check if contract already has delegate role
+        bool alreadyHasRole = roles.hasDelegateRole(address(giftProxy));
+        if (alreadyHasRole) {
+            console.log('   Gift contract already has delegate role');
+        } else {
+            // Grant delegate role - will revert if it fails
+            console.log('   Sending grantDelegateRole transaction...');
+            roles.grantDelegateRole(address(giftProxy));
+            console.log('   Delegate role grant transaction sent');
+        }
+
+        // Step 4: Verify delegate role was granted
+        console.log('\nStep 4: Verifying delegate role...');
+        bool hasRole = roles.hasDelegateRole(address(giftProxy));
+        require(hasRole, "CRITICAL: Delegate role verification failed - Gift contract does not have delegate role after grant");
+        console.log('   Delegate role verified successfully');
 
         vm.stopBroadcast();
 
         // Print summary
+        console.log('\n========================================');
         console.log("Deployment complete for", network);
+        console.log('========================================');
         console.log('Gift Contract addresses:');
         console.log('   - Implementation:', address(giftImpl));
         console.log('   - Proxy:', address(giftProxy));
+        console.log('   - Roles Contract:', rolesAddress);
+        console.log('   - Delegate Role: Granted and Verified');
+        console.log('========================================\n');
     }
 }
 

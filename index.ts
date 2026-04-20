@@ -1,5 +1,5 @@
 // Auto-generated - Do not edit manually
-// Updated: 2025-12-04T13:57:15.811Z
+// Updated: 2026-02-23T18:36:15.110Z
 
 import type { Address } from 'viem';
 
@@ -8180,7 +8180,7 @@ export const addresses = {
     Payments: '0x921e936c7db1bd2df0f7f47926adcbf67b00b6d3' as Address,
     Sales: '0x57aa14ba9f407785f1a0cff5bd5cb48d06304e79' as Address,
     Memberships: '0x9b8ff464aaa24a16b47f5ef0ab5649b6e27928bd' as Address,
-    Gift: '0x0000000000000000000000000000000000000000' as Address,
+    Gift: '0xd3eadce66bd0b4b8d4e118ddc20eef27e6fa27ef' as Address,
     USDCApprovalProxy: '0xED0c9404690EE93A21c98eB3c6B0C38DC4119bb0' as Address,
   },
   testnet: {

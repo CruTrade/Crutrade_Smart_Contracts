@@ -333,6 +333,9 @@ contract CrutradeDeploy is Script {
     Roles(address(rolesProxy)).grantDelegateRole(address(salesProxy));
     console.log('   - Delegate role granted to Sales contract');
 
+    Roles(address(rolesProxy)).grantDelegateRole(address(giftProxy));
+    console.log('   - Delegate role granted to Gift contract');
+
     console.log('All contract roles granted successfully');
   }
 

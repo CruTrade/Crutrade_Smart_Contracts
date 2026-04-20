@@ -80,18 +80,39 @@ const envVars = {
 
 console.log("\n🚀 Starting Gift deployment...");
 
-// Run forge script
-await $`forge script script/deploy-gift.s.sol:DeployGift --rpc-url ${config.rpc} --private-key ${config.privateKey} --broadcast --via-ir ${config.forgeArgs}`.env(
-  envVars
-);
+try {
+  // Run forge script
+  await $`forge script script/deploy-gift.s.sol:DeployGift --rpc-url ${config.rpc} --private-key ${config.privateKey} --broadcast --via-ir ${config.forgeArgs}`.env(
+    envVars
+  );
 
-console.log("\n✅ Gift deployment completed successfully!");
+  console.log("\n✅ Gift deployment completed successfully!");
 
-// Update deployments folder
-console.log("\n📁 Updating deployments folder...");
-await $`bun script/create-gift-deployments.ts`;
+  // Update deployments folder
+  console.log("\n📁 Updating deployments folder...");
+  try {
+    await $`bun script/create-gift-deployments.ts`;
+    console.log("✅ Deployments folder updated successfully!");
+  } catch (deploymentError) {
+    console.error("\n❌ Failed to update deployments folder:");
+    console.error(deploymentError);
+    console.error("\n⚠️  WARNING: Deployment succeeded but deployments folder update failed.");
+    console.error("   You may need to manually update the deployments folder.");
+    process.exit(1);
+  }
 
-console.log("\n✅ All done!");
+  console.log("\n✅ All done!");
+} catch (error) {
+  console.error("\n❌ Gift deployment failed!");
+  console.error("Error details:", error);
+  console.error("\nPlease check:");
+  console.error("  1. PRIVATE_KEY is set correctly in .env");
+  console.error("  2. ROLES_ADDRESS is set correctly in .env");
+  console.error("  3. Deployer address has DEFAULT_ADMIN_ROLE on Roles contract");
+  console.error("  4. Network RPC is accessible");
+  console.error("  5. Sufficient balance for gas fees");
+  process.exit(1);
+}
 
 
 
