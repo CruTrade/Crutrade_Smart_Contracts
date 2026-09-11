@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/foundry-rs/foundry:v1.2.1 AS foundry
+FROM ghcr.io/foundry-rs/foundry:latest AS foundry
 FROM oven/bun:latest
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git curl \

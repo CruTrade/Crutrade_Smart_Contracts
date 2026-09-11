@@ -22,6 +22,17 @@ The Docker image contains freshly installed dependencies and compiled contracts,
 or secrets. Validation uses the host's native architecture; ARM64 results are not independent AMD64
 release evidence. See `README.md` for the Docker setup.
 
+Latest Foundry validation on 2026-09-11: `forge`, `cast` and `anvil` resolved to 1.8.1
+(commit `982849d3140c01fd3b72905759581a132df7aa98`), with Bun 1.4.2 on Debian 13/Linux ARM64.
+The sanitized staged snapshot built as image
+`sha256:ef2af87bcc9756530417ae0cae64ac247270faba554ae0a3ff3649ba6623d3c7`.
+`forge test --offline -q` and `bun test docker/local-stack.test.ts` passed in a disposable
+`--network none` container; Compose reached healthy after automatic deployment.
+`bunx --bun --no-install tsc --noEmit` returned only the same three existing diagnostics.
+The lifecycle regression also caught the empty optional argument in `script/deploy.ts`, which was
+removed from the Forge invocation without changing Solidity. Newer Forge emits lint diagnostics
+on existing code during build; compilation still succeeds.
+
 Bun/TypeScript validation on 2026-09-11: the staged-only snapshot built with `oven/bun:latest`
 (Bun 1.4.2, Debian 13, Linux ARM64), image
 `sha256:8f0566cc046223b14aa8a6ea80ede70bd6b055e3a6482f3d4a46b9dbd0789b92`.

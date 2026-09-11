@@ -20,9 +20,12 @@ Use the same `COMPOSE` override and `CRUTRADE_RPC_PORT` for commands targeting a
 The repository now includes `Dockerfile`, `compose.yaml` and `docker/local-stack.ts` for local
 development. Run `docker compose up --build -d --wait` to build and start Anvil plus an automatic
 ecosystem deployment. `docker compose run --rm test` runs the Foundry suite without network access.
-The image pins Foundry 1.2.1 and uses `oven/bun:latest`, without a Node runtime, using the native Docker
-architecture. Run `docker compose build --pull` to refresh Bun. Dependencies and solc are downloaded
+The image uses `ghcr.io/foundry-rs/foundry:latest` and `oven/bun:latest`, without a Node runtime,
+using the native Docker architecture. Run `make build` or `docker compose build --pull` to refresh
+both toolchains. Dependencies and the pinned Solidity 0.8.30 compiler are downloaded
 during build; host secrets and caches are excluded. Legacy package release tooling still needs npm/npx.
+`script/deploy.ts` omits empty optional Forge arguments, which newer Forge otherwise interprets as
+arguments to the Solidity script's `run()` function.
 
 The `local-state` volume persists Anvil state, a proxy address manifest and the deployment broadcast.
 Restarts verify and reuse the deployment. `docker compose down` preserves it; `down --volumes`

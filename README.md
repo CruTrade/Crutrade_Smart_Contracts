@@ -13,7 +13,7 @@ provide marketplace fixtures and signed transaction examples.
 From the repository root, with Make installed, these shortcuts wrap the Docker Compose workflow:
 
 ```bash
-make up          # Build with latest Bun, deploy, and wait for readiness
+make up          # Build with latest Foundry/Bun, deploy, and wait for readiness
 make addresses   # Print local proxy addresses
 make test        # Run offline Solidity and TypeScript lifecycle tests
 make logs        # Follow logs; Ctrl-C stops following
@@ -84,9 +84,10 @@ copied or mounted. The state volume contains local development data only.
 ## Native development setup
 
 Use this path when editing contracts frequently. Run all commands from the repository root.
-Install Foundry (`forge`, `cast`, `anvil`) and the latest stable Bun first. The Dockerfile pins Foundry
-**1.2.1** and uses **`oven/bun:latest`**, with no Node.js runtime. `docker compose build --pull`
-refreshes the Bun base image. Solidity is pinned to **0.8.30** and targets Cancun with `via_ir = true`.
+Install Foundry (`forge`, `cast`, `anvil`) and the latest stable Bun first. The Dockerfile uses
+**`ghcr.io/foundry-rs/foundry:latest`** and **`oven/bun:latest`**, with no Node.js runtime.
+`make build` or `docker compose build --pull` refreshes both images. Solidity remains pinned to
+**0.8.30** and targets Cancun with `via_ir = true`.
 
 ```bash
 forge --version
