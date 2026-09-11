@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import { readFile, writeFile, rename, rm, mkdir, copyFile } from 'node:fs/promises';
 
 const rpcUrl = 'http://127.0.0.1:8545';
@@ -7,11 +7,20 @@ const manifestPath = '/data/deployment.json';
 const readyPath = '/tmp/crutrade-ready';
 const admin = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 const contracts = ['Roles', 'Brands', 'Wrappers', 'Whitelist', 'Payments', 'Sales', 'Memberships', 'USDCApprovalProxy'];
-let anvil;
-let deployment;
+type RunResult = { code?: number | null; signal?: NodeJS.Signals | null; error?: Error };
+type ManagedChild = ChildProcess & { done: Promise<RunResult> };
+type Manifest = { chainId: number; contracts: Record<string, string> };
+type BroadcastTransaction = {
+  transactionType: string;
+  contractName: string;
+  contractAddress: string;
+  arguments?: string[];
+};
+let anvil: ManagedChild | undefined;
+let deployment: ManagedChild | undefined;
 let stopping = false;
 
-async function rpc(method, params = []) {
+async function rpc(method: string, params: unknown[] = []): Promise<string> {
   const response = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -19,13 +28,14 @@ async function rpc(method, params = []) {
     signal: AbortSignal.timeout(3000),
   });
   if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
-  const body = await response.json();
+  const body = await response.json() as { error?: { message: string }; result?: string };
   if (body.error) throw new Error(`${method}: ${body.error.message}`);
+  if (typeof body.result !== 'string') throw new Error(`${method}: invalid RPC response`);
   return body.result;
 }
 
-function run(command, args, options = {}) {
-  const child = spawn(command, args, { stdio: 'inherit', ...options });
+function run(command: string, args: string[], options: SpawnOptions = {}): ManagedChild {
+  const child = spawn(command, args, { stdio: 'inherit', ...options }) as ManagedChild;
   // Attach immediately so a fast exit cannot be missed during startup.
   child.done = new Promise((resolve) => {
     child.once('error', (error) => resolve({ error }));
@@ -51,16 +61,16 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   process.once(signal, () => { void stop(); });
 }
 
-async function readManifest() {
+async function readManifest(): Promise<Manifest | null> {
   try {
     return JSON.parse(await readFile(manifestPath, 'utf8'));
   } catch (error) {
-    if (error.code === 'ENOENT') return null;
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null;
     throw error;
   }
 }
 
-async function verify(manifest) {
+async function verify(manifest: Manifest) {
   if (manifest.chainId !== 31337) throw new Error('Unexpected deployment chain ID');
   for (const name of contracts) {
     const address = manifest.contracts?.[name];
@@ -104,8 +114,8 @@ async function main() {
     if (result.error || result.code !== 0) throw new Error(`Local deployment failed: ${result.error ?? result.code}`);
 
     const broadcastPath = 'broadcast/deploy.s.sol/31337/run-latest.json';
-    const broadcast = JSON.parse(await readFile(broadcastPath, 'utf8'));
-    const addresses = {};
+    const broadcast = JSON.parse(await readFile(broadcastPath, 'utf8')) as { transactions: BroadcastTransaction[] };
+    const addresses: Record<string, string> = {};
     for (const name of contracts) {
       const implementation = broadcast.transactions.find((tx) => tx.transactionType === 'CREATE' && tx.contractName === name);
       const proxy = broadcast.transactions.find((tx) => tx.transactionType === 'CREATE'

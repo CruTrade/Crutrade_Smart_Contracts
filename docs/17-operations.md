@@ -11,11 +11,12 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ### Container alternative
 
-The repository now includes `Dockerfile`, `compose.yaml` and `docker/local-stack.mjs` for local
+The repository now includes `Dockerfile`, `compose.yaml` and `docker/local-stack.ts` for local
 development. Run `docker compose up --build -d --wait` to build and start Anvil plus an automatic
 ecosystem deployment. `docker compose run --rm test` runs the Foundry suite without network access.
-The image pins Foundry 1.2.1, Bun 1.4.2 and Node 26.8.2 on Debian Bookworm, using the native Docker
-architecture. Dependencies and solc are downloaded during build; host secrets and caches are excluded.
+The image pins Foundry 1.2.1 and uses `oven/bun:latest`, without a Node runtime, using the native Docker
+architecture. Run `docker compose build --pull` to refresh Bun. Dependencies and solc are downloaded
+during build; host secrets and caches are excluded. Legacy package release tooling still needs npm/npx.
 
 The `local-state` volume persists Anvil state, a proxy address manifest and the deployment broadcast.
 Restarts verify and reuse the deployment. `docker compose down` preserves it; `down --volumes`

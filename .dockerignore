@@ -21,7 +21,7 @@
 !types/
 !types/**/*.ts
 !docker/
-!docker/*.mjs
+!docker/*.ts
 # Never let an extension allowlist admit dotenv files.
 **/.env
 **/.env.*

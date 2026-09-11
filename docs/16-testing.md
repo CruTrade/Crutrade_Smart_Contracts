@@ -13,7 +13,7 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 After `docker compose build`, run `docker compose run --rm test`. This disposable container has
 `network_mode: none` and runs both `forge test --offline` and
-`node --test docker/local-stack.test.mjs`. The startup test creates its own local Anvil, verifies
+`bun test docker/local-stack.test.ts`. The startup test creates its own local Anvil, verifies
 all eight deployed proxies, restarts and checks unchanged addresses and deployer nonce, then
 checks that an invalid persisted manifest exits non-zero and never reports ready. It owns `/data`
 inside its disposable container; do not run it against a developer's persisted state volume.
@@ -22,7 +22,16 @@ The Docker image contains freshly installed dependencies and compiled contracts,
 or secrets. Validation uses the host's native architecture; ARM64 results are not independent AMD64
 release evidence. See `README.md` for the Docker setup.
 
-Validation recorded on 2026-09-11: a sanitized archive of the Git index (excluding the user's
+Bun/TypeScript validation on 2026-09-11: the staged-only snapshot built with `oven/bun:latest`
+(Bun 1.4.2, Debian 13, Linux ARM64), image
+`sha256:8f0566cc046223b14aa8a6ea80ede70bd6b055e3a6482f3d4a46b9dbd0789b92`.
+`forge test --offline -q` and `bun test docker/local-stack.test.ts` passed in a disposable
+`--network none` container. `bunx --bun --no-install tsc --noEmit` returned only the three existing
+diagnostics below, including the new Docker TypeScript files in its scope. The image's `node`
+compatibility command is a symlink to Bun, not a separate Node.js runtime.
+
+Historical Node-based image validation on 2026-09-11 (before the Bun-only runtime change):
+a sanitized archive of the Git index (excluding the user's
 unstaged `bun.lock` and `remappings.txt` changes) built successfully on Linux ARM64, Debian 12,
 Foundry 1.2.1, Bun 1.4.2 and Node 26.8.2. The image ID was
 `sha256:55cbef3099232f0769f99c9e3ce3b7d4d35cf2aeccce082fb16f1165bdfccc20`.

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docker: use the latest Bun image and TypeScript for startup and lifecycle tests, removing the Node.js runtime.
 - `README.md`: add Docker and native onboarding, marketplace prerequisites, package generation,
   remote deployment constraints and contributor/agent workflow.
 - `README.md`: corrected the install command to the published package name `@crutrade/contracts`,

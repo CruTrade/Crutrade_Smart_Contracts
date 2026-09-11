@@ -8,11 +8,13 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ## Dev environment
 
-For container onboarding, run `docker compose up --build -d --wait`; this builds the pinned
-toolchain and starts Anvil with automatic local deployment. `docker compose run --rm test` runs
+For container onboarding, run `docker compose up --build -d --wait`; this builds the
+Foundry/Bun toolchain and starts Anvil with automatic local deployment. The image uses `oven/bun:latest`,
+without Node; use `docker compose build --pull` to refresh it. `docker compose run --rm test` runs
 Foundry tests offline in a disposable container. See `README.md` for state, reset and port controls.
 Docker inputs are allowlisted by `.dockerignore`; never add host secrets or dependency caches.
-Container startup code lives in `docker/local-stack.mjs`. Changes to it require validating initial
+Container startup code lives in `docker/local-stack.ts`. Use TypeScript for new tooling and tests.
+Changes to it require validating initial
 deployment, restart reuse and failure handling on a disposable local volume. The Compose stack is
 local-only; it does not configure or authorize remote deployments.
 

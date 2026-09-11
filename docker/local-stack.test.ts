@@ -1,28 +1,30 @@
-import test from 'node:test';
+import { test, afterEach } from 'bun:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile, writeFile, access } from 'node:fs/promises';
 
+type ManagedChild = ChildProcess & { done: Promise<number | null> };
+let child: ManagedChild;
+afterEach(async () => {
+  if (child?.exitCode === null) {
+    child.kill('SIGTERM');
+    await child.done;
+  }
+});
+
 // Run only in a disposable image container: this test owns its /data and port 8545.
-test('local stack deploys, persists, reuses addresses and rejects inconsistent state', { timeout: 120000 }, async (t) => {
-  let child;
+test('local stack deploys, persists, reuses addresses and rejects inconsistent state', async () => {
   let output = '';
   const launch = () => {
     output = '';
-    child = spawn(process.execPath, ['docker/local-stack.mjs'], { stdio: ['ignore', 'pipe', 'pipe'] });
-    child.stdout.on('data', (chunk) => { output = (output + chunk).slice(-100000); });
-    child.stderr.on('data', (chunk) => { output = (output + chunk).slice(-100000); });
+    child = spawn(process.execPath, ['docker/local-stack.ts'], { stdio: ['ignore', 'pipe', 'pipe'] }) as ManagedChild;
+    child.stdout!.on('data', (chunk: Buffer) => { output = (output + chunk).slice(-100000); });
+    child.stderr!.on('data', (chunk: Buffer) => { output = (output + chunk).slice(-100000); });
     child.done = new Promise((resolve, reject) => {
       child.once('error', reject);
       child.once('exit', (code) => resolve(code));
     });
   };
-  t.after(async () => {
-    if (child?.exitCode === null) {
-      child.kill('SIGTERM');
-      await child.done;
-    }
-  });
   const waitReady = async () => {
     for (let i = 0; i < 120; i++) {
       assert.equal(child.exitCode, null, output);
@@ -31,13 +33,13 @@ test('local stack deploys, persists, reuses addresses and rejects inconsistent s
     }
     assert.fail(`Startup timed out: ${output}`);
   };
-  const rpc = async (method, params = []) => {
+  const rpc = async (method: string, params: unknown[] = []): Promise<string> => {
     const response = await fetch('http://127.0.0.1:8545', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
       signal: AbortSignal.timeout(3000),
     });
-    const body = await response.json();
+    const body = await response.json() as { error?: unknown; result: string };
     assert.equal(body.error, undefined);
     return body.result;
   };
@@ -71,4 +73,4 @@ test('local stack deploys, persists, reuses addresses and rejects inconsistent s
   assert.equal(await child.done, 1, output);
   assert.match(output, /Unexpected deployment chain ID/);
   await assert.rejects(access('/tmp/crutrade-ready'));
-});
+}, 120000);

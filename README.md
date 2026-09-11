@@ -15,7 +15,8 @@ Requires Git and Docker with Compose v2 or later. From an existing checkout, ski
 ```bash
 git clone git@github.com:CruTrade/Crutrade_Smart_Contracts.git
 cd Crutrade_Smart_Contracts
-docker compose up --build -d --wait
+docker compose build --pull
+docker compose up -d --wait
 docker compose logs local
 ```
 
@@ -34,7 +35,7 @@ When the service becomes healthy:
 
 ```bash
 # Read the local address manifest and check the chain.
-docker compose exec local node -p 'require("/data/deployment.json")'
+docker compose exec local bun -p 'require("/data/deployment.json")'
 docker compose exec local cast chain-id --rpc-url http://127.0.0.1:8545
 
 # Run Foundry and Docker startup regression tests in a disposable, offline container.
@@ -66,22 +67,20 @@ copied or mounted. The state volume contains local development data only.
 ## Native development setup
 
 Use this path when editing contracts frequently. Run all commands from the repository root.
-Install Foundry (`forge`, `cast`, `anvil`), Bun and Node.js/npm first. The Dockerfile pins Foundry
-**1.2.1**, Bun **1.4.2** and Node **26.8.2**; these are also the native versions available during
-verification. Solidity is pinned to **0.8.30** and targets Cancun with `via_ir = true`.
+Install Foundry (`forge`, `cast`, `anvil`) and the latest stable Bun first. The Dockerfile pins Foundry
+**1.2.1** and uses **`oven/bun:latest`**, with no Node.js runtime. `docker compose build --pull`
+refreshes the Bun base image. Solidity is pinned to **0.8.30** and targets Cancun with `via_ir = true`.
 
 ```bash
 forge --version
 bun --version
-node --version
-npm --version
 
 forge soldeer install
 bun install --no-save
 
 forge build --via-ir
 forge test
-npx tsc --noEmit
+bunx --bun --no-install tsc --noEmit
 ```
 
 Solidity dependencies go into `dependencies/`; JavaScript dependencies go into `node_modules/`.
@@ -105,7 +104,7 @@ forge test --match-test test_CompleteEcosystemFlow -vv
 forge test --match-test test_PurchaseFlow -vvv
 ```
 
-For native deployment, leave `npm run anvil` running in terminal 1, then run `npm run deploy:local`
+For native deployment, leave `bun run anvil` running in terminal 1, then run `bun run deploy:local`
 in terminal 2. It uses the local configuration tables and public Anvil key, and records transactions
 in `broadcast/deploy.s.sol/31337/run-latest.json`. Native Anvil is ephemeral with this command.
 Do not run native Anvil on the same port as the Docker stack.
@@ -185,6 +184,9 @@ TypeScript rather than compiled JavaScript; consumers need a toolchain that hand
 See [package documentation](docs/10-typescript-package.md).
 
 ## Build the package
+
+The local stack and tests need only Bun and Foundry. The existing package release scripts still
+invoke npm/npx internally and require Node/npm; they are not part of Docker startup.
 
 For a local bundle of the existing checked-in `index.ts`, run `bunx --no-install tsup` after dependency
 installation. To regenerate ABIs, bindings and addresses for a release, first restore and verify the
@@ -268,7 +270,7 @@ inputs, never OrbStack Machines; use `--network none` when checks do not require
 | `src/abstracts/`, `src/interfaces/` | Shared implementation and cross-contract types |
 | `test/Crutrade.t.sol` | Ecosystem fixtures, signature examples and tests |
 | `script/` | Deployment, configuration, upgrades and package generation |
-| `docker/local-stack.mjs`, `compose.yaml` | Local startup, persistence and offline test service |
+| `docker/local-stack.ts`, `compose.yaml` | Local startup, persistence and offline test service |
 | `index.ts`, `types/`, `dist/` | Generated package source, bindings and build output |
 
 All eight production contracts use ERC1967 UUPS proxies. Most peers are resolved through `Roles`;

@@ -19,6 +19,6 @@
     "declaration": true,
     "outDir": "./dist"
   },
-  "include": ["src/**/*", "script", "update-package.ts"],
+  "include": ["src/**/*", "script", "docker/**/*.ts", "update-package.ts"],
   "exclude": ["node_modules"]
 }
