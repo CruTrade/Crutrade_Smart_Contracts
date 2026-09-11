@@ -2,11 +2,37 @@
 
 One Foundry suite covers the whole system: `test/Crutrade.t.sol`, 4319 lines, 115 tests, all passing at
 the verified commit in roughly 240 ms. There are no TypeScript unit tests; `script/test-package.ts` is
-a packaging smoke test, not a test suite.
+a packaging smoke test, not a test suite. The Docker startup integration test described below is
+separate from the Solidity suite.
 
 Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ## Running
+
+### Container validation
+
+After `docker compose build`, run `docker compose run --rm test`. This disposable container has
+`network_mode: none` and runs both `forge test --offline` and
+`node --test docker/local-stack.test.mjs`. The startup test creates its own local Anvil, verifies
+all eight deployed proxies, restarts and checks unchanged addresses and deployer nonce, then
+checks that an invalid persisted manifest exits non-zero and never reports ready. It owns `/data`
+inside its disposable container; do not run it against a developer's persisted state volume.
+
+The Docker image contains freshly installed dependencies and compiled contracts, never host caches
+or secrets. Validation uses the host's native architecture; ARM64 results are not independent AMD64
+release evidence. See `README.md` for the Docker setup.
+
+Validation recorded on 2026-09-11: a sanitized archive of the Git index (excluding the user's
+unstaged `bun.lock` and `remappings.txt` changes) built successfully on Linux ARM64, Debian 12,
+Foundry 1.2.1, Bun 1.4.2 and Node 26.8.2. The image ID was
+`sha256:55cbef3099232f0769f99c9e3ce3b7d4d35cf2aeccce082fb16f1165bdfccc20`.
+`forge test --offline` passed all 115 tests; `node --test docker/local-stack.test.mjs` passed its
+deployment/restart/failure regression. Both ran under `docker run --rm --network none`.
+`npx --no-install tsc --noEmit` exited 2 with the three existing diagnostics in `config.ts:4` and
+`script/init.ts:129` (twice). Compose startup reached healthy and recreation retained all proxy
+addresses with deployer nonce unchanged at 26. These are functional checks, not benchmarks.
+
+### Native commands
 
 ```bash
 forge test                                    # full suite

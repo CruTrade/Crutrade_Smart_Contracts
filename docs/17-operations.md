@@ -1,13 +1,29 @@
 # 17 — Operations
 
 Operations here means deploying the contract set, upgrading an implementation, applying on-chain
-configuration and publishing the npm package. There is no server, no container, no scheduler and no CI
+configuration and publishing the npm package. There is no application server, scheduler or CI
 in this repository; everything is run by a developer from a workstation with Foundry, Bun and a funded
 key.
 
 Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ## Prerequisites
+
+### Container alternative
+
+The repository now includes `Dockerfile`, `compose.yaml` and `docker/local-stack.mjs` for local
+development. Run `docker compose up --build -d --wait` to build and start Anvil plus an automatic
+ecosystem deployment. `docker compose run --rm test` runs the Foundry suite without network access.
+The image pins Foundry 1.2.1, Bun 1.4.2 and Node 26.8.2 on Debian Bookworm, using the native Docker
+architecture. Dependencies and solc are downloaded during build; host secrets and caches are excluded.
+
+The `local-state` volume persists Anvil state, a proxy address manifest and the deployment broadcast.
+Restarts verify and reuse the deployment. `docker compose down` preserves it; `down --volumes`
+explicitly deletes this local state. Rebuilding the image does not upgrade existing proxies.
+Runtime RPC is published on loopback port 8545 (`CRUTRADE_RPC_PORT` can override the host port).
+See [the README](../README.md) for commands, local workflow and known setup limitations.
+
+### Native tools
 
 | Tool | Verified version | Used for |
 | --- | --- | --- |
@@ -36,14 +52,18 @@ printed and recorded in `broadcast/deploy.s.sol/31337/run-latest.json`.
 3. Run `forge script script/deploy.s.sol --rpc-url <rpc> --private-key <key> --broadcast --via-ir`
    with `NETWORK` set to `fuji` or `mainnet`, plus the env vars listed in `docs/13-configuration.md`.
    `npm run deploy:mainnet` does this for mainnet; `npm run deploy:testnet` passes the literal `fuji`,
-   which `script/deploy.ts` rejects as an unknown network, so use `NETWORK=fuji bun script/deploy.ts testnet`
-   or invoke `forge script` directly.
+   which `script/deploy.ts` rejects as an unknown network. Invoke `forge script` directly with
+   `NETWORK=fuji`: `NETWORK=fuji bun script/deploy.ts testnet` does not work because the wrapper
+   overwrites the child environment with `NETWORK=testnet`, selecting the Solidity local branch.
+   The broadcasting signer must also equal the initial `OWNER`: the script grants contract roles
+   from that signer after assigning admin to `OWNER`. The configured mainnet multisig therefore
+   requires a deployment/admin handoff flow that the current script does not implement.
 4. Apply the post-deployment configuration that the script does not perform:
    `Payments.setFiatFeePercentage`, `Payments.setServiceFee` for `LIST`/`BUY`/`WITHDRAW`/`RENEW`,
    `Payments.setMembershipFees`, `Sales.setDurations`, `Sales.setSchedules`,
    `Whitelist.addToWhitelist`. See `docs/13-configuration.md` for why each is needed.
 5. Regenerate the package: `bun script/create-deployments.ts && bun script/update-package.ts`, then
-   commit `index.ts` and `deployments/`.
+   review `index.ts` and archive `deployments/` separately (it is gitignored).
 
 Deployments are recorded only in `broadcast/`, which is gitignored and which `npm run clean` deletes.
 Back it up before cleaning, or the address history is lost.
@@ -104,8 +124,8 @@ state; the proxy address is the one to use, not the implementation.
 ## Not implemented
 
 - No CI or CD. No `.github/`, no pipeline configuration anywhere in the repository.
-- No Dockerfile, container image, systemd unit or hosting configuration.
-- No monitoring, metrics, alerting or health checks.
+- No production hosting or systemd configuration; Docker Compose is for local development only.
+- No production monitoring, metrics or alerting. The local Compose stack has an RPC readiness healthcheck.
 - No structured logging. Scripts print to stdout with emoji prefixes.
 - No contract verification step in the deploy path. Only `script/run-custom-upgrade.sh` passes
   `--verify`.
