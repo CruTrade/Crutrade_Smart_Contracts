@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Makefile: shortcuts for Docker startup, logs, proxy addresses, tests, typechecking and explicit local-state reset.
+- Docker local environment: pinned toolchain image, automatic Anvil deployment, persistent local
+  state, proxy address manifest and an offline test service.
 - Repository documentation set under `docs/`: architecture, data model, core flows, per-module
   chapters, API and script references, configuration, errors, security, testing, operations,
   onboarding, tech debt and glossary.
@@ -20,9 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docker: track the latest Foundry image alongside Bun while retaining Solidity 0.8.30.
+- Docker: use the latest Bun image and TypeScript for startup and lifecycle tests, removing the Node.js runtime.
+- `README.md`: add Docker and native onboarding, marketplace prerequisites, package generation,
+  remote deployment constraints and contributor/agent workflow.
 - `README.md`: corrected the install command to the published package name `@crutrade/contracts`,
   added `USDCApprovalProxy` to the contract table, documented the local development commands and
   linked the new documentation.
+
+### Fixed
+
+- Deployment script: omit empty optional arguments so local deployment works with current Foundry releases.
 
 ## [1.5.0]
 

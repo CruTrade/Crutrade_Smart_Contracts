@@ -8,6 +8,21 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ## Dev environment
 
+`make help` lists local workflow shortcuts. `make up` builds with refreshed base images and waits
+for readiness; `make test` runs the offline container checks. `make reset` deletes local state.
+The Makefile only wraps Compose; keep contract logic and TypeScript tooling separate.
+
+For container onboarding, run `docker compose up --build -d --wait`; this builds the
+Foundry/Bun toolchain and starts Anvil with automatic local deployment. The image uses
+`ghcr.io/foundry-rs/foundry:latest` and `oven/bun:latest`, without Node; use `make build` or
+`docker compose build --pull` to refresh both. `docker compose run --rm test` runs
+Foundry tests offline in a disposable container. See `README.md` for state, reset and port controls.
+Docker inputs are allowlisted by `.dockerignore`; never add host secrets or dependency caches.
+Container startup code lives in `docker/local-stack.ts`. Use TypeScript for new tooling and tests.
+Changes to it require validating initial
+deployment, restart reuse and failure handling on a disposable local volume. The Compose stack is
+local-only; it does not configure or authorize remote deployments.
+
 Requires Foundry (verified with forge 1.2.1), Bun (verified with 1.4.2) and Node (for `npx typechain`).
 
 | Task | Command |
@@ -23,7 +38,8 @@ Requires Foundry (verified with forge 1.2.1), Bun (verified with 1.4.2) and Node
 `npm run build` runs `forge build --via-ir`, then `tsup`, then regenerates `types/` and rewrites the
 root `index.ts`. It overwrites checked-in files, so run it only when you intend to publish.
 
-There is no linter. `forge fmt --check` currently fails on 30 of the 31 Solidity files in the repo, so
+There is no configured linter gate; newer Foundry builds emit lint diagnostics.
+`forge fmt --check` currently fails on 30 of the 31 Solidity files in the repo, so
 never run `forge fmt` without being asked: it would reformat the whole codebase.
 
 ## Testing

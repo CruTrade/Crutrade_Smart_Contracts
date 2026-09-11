@@ -1,0 +1,27 @@
+# Allowlist the build context. Never send local secrets, history or dependency caches.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!bun.lock
+!soldeer.lock
+!foundry.toml
+!remappings.txt
+!index.ts
+!config.ts
+!tsconfig.json
+!tsup.config.ts
+!src/
+!src/**/*.sol
+!script/
+!script/*.ts
+!script/*.sol
+!test/
+!test/*.sol
+!types/
+!types/**/*.ts
+!docker/
+!docker/*.ts
+# Never let an extension allowlist admit dotenv files.
+**/.env
+**/.env.*

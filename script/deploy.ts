@@ -122,7 +122,9 @@ const envVars = {
 console.log("\n🚀 Starting deployment...");
 
 // For local, usdc is set by the deploy script after deploying MockUSDC
-await $`forge script script/deploy.s.sol --rpc-url ${config.rpc} --private-key ${config.privateKey} --broadcast --via-ir ${config.forgeArgs}`.env(
+// Newer Forge treats an empty positional argument as an argument to run().
+const forgeArgs = config.forgeArgs ? [config.forgeArgs] : [];
+await $`forge script script/deploy.s.sol --rpc-url ${config.rpc} --private-key ${config.privateKey} --broadcast --via-ir ${forgeArgs}`.env(
   envVars
 );
 
