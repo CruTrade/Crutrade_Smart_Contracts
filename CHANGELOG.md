@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Makefile: shortcuts for Docker startup, logs, proxy addresses, tests, typechecking and explicit local-state reset.
 - Docker local environment: pinned toolchain image, automatic Anvil deployment, persistent local
   state, proxy address manifest and an offline test service.
 - Repository documentation set under `docs/`: architecture, data model, core flows, per-module

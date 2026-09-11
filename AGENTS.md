@@ -8,6 +8,10 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ## Dev environment
 
+`make help` lists local workflow shortcuts. `make up` builds with refreshed base images and waits
+for readiness; `make test` runs the offline container checks. `make reset` deletes local state.
+The Makefile only wraps Compose; keep contract logic and TypeScript tooling separate.
+
 For container onboarding, run `docker compose up --build -d --wait`; this builds the
 Foundry/Bun toolchain and starts Anvil with automatic local deployment. The image uses `oven/bun:latest`,
 without Node; use `docker compose build --pull` to refresh it. `docker compose run --rm test` runs

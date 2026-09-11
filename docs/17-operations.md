@@ -11,6 +11,12 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ### Container alternative
 
+The root `Makefile` wraps Compose: `make up`, `make down`, `make restart`, `make logs`,
+`make status`, `make addresses`, `make test`, and `make typecheck`. `make help` documents all targets.
+`make up`, `make test`, and `make typecheck` build first and refresh base images; `make start`
+reuses an existing image. `make reset` explicitly deletes the local chain/deployment volume.
+Use the same `COMPOSE` override and `CRUTRADE_RPC_PORT` for commands targeting a custom project.
+
 The repository now includes `Dockerfile`, `compose.yaml` and `docker/local-stack.ts` for local
 development. Run `docker compose up --build -d --wait` to build and start Anvil plus an automatic
 ecosystem deployment. `docker compose run --rm test` runs the Foundry suite without network access.

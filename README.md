@@ -10,6 +10,23 @@ provide marketplace fixtures and signed transaction examples.
 
 ## Quick start with Docker
 
+From the repository root, with Make installed, these shortcuts wrap the Docker Compose workflow:
+
+```bash
+make up          # Build with latest Bun, deploy, and wait for readiness
+make addresses   # Print local proxy addresses
+make test        # Run offline Solidity and TypeScript lifecycle tests
+make logs        # Follow logs; Ctrl-C stops following
+make down        # Stop while preserving state
+make help        # List all commands
+```
+
+`make start` reuses the existing image; `make restart` recreates containers with saved state.
+`make typecheck` runs Bun's TypeScript check and reports the existing baseline errors described below.
+`make reset` **deletes the local chain and deployment volume**; run `make up` afterwards to redeploy.
+Use `CRUTRADE_RPC_PORT=18545 make up` for another host port. All targets accept a `COMPOSE` override,
+for example `make status COMPOSE='docker compose --env-file /dev/null -p crutrade-dev'`.
+
 Requires Git and Docker with Compose v2 or later. From an existing checkout, skip the clone step.
 
 ```bash
