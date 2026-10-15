@@ -11,6 +11,8 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 `make help` lists local workflow shortcuts. `make up` builds with refreshed base images and waits
 for readiness; `make test` runs the offline container checks. `make reset` deletes local state.
 The Makefile only wraps Compose; keep contract logic and TypeScript tooling separate.
+Only local Docker development and offline test services/builds select `linux/arm64` for Apple
+Silicon, without Intel emulation. Production, release and CI architecture choices are unchanged.
 
 For container onboarding, run `docker compose up --build -d --wait`; this builds the
 Foundry/Bun toolchain and starts Anvil with automatic local deployment. The image uses
