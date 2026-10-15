@@ -27,7 +27,9 @@ make help        # List all commands
 Use `CRUTRADE_RPC_PORT=18545 make up` for another host port. All targets accept a `COMPOSE` override,
 for example `make status COMPOSE='docker compose --env-file /dev/null -p crutrade-dev'`.
 
-Requires Git and Docker with Compose v2 or later. From an existing checkout, skip the clone step.
+Requires Git and Docker with Compose v2 or later. Local and offline test services explicitly build
+and run as `linux/arm64` on Apple Silicon, without Intel emulation. From an existing checkout, skip
+the clone step.
 
 ```bash
 git clone git@github.com:CruTrade/Crutrade_Smart_Contracts.git

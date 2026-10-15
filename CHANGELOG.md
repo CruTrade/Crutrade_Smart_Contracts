@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docker local environment: explicitly build and run all development and offline test services as native `linux/arm64` on Apple Silicon.
+
 - Docker: track the latest Foundry image alongside Bun while retaining Solidity 0.8.30.
 - Docker: use the latest Bun image and TypeScript for startup and lifecycle tests, removing the Node.js runtime.
 - `README.md`: add Docker and native onboarding, marketplace prerequisites, package generation,

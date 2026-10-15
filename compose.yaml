@@ -1,6 +1,9 @@
 services:
   local:
-    build: .
+    platform: linux/arm64
+    build:
+      context: .
+      platforms: [linux/arm64]
     image: crutrade-contracts:local
     init: true
     ports:
@@ -20,7 +23,10 @@ services:
       retries: 12
 
   test:
-    build: .
+    platform: linux/arm64
+    build:
+      context: .
+      platforms: [linux/arm64]
     image: crutrade-contracts:local
     profiles: [tools]
     network_mode: none

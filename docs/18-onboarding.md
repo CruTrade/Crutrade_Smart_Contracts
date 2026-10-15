@@ -10,7 +10,8 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 For container onboarding without host Foundry/Bun/Node, follow the Docker quick start in
 [README.md](../README.md): `docker compose up --build -d --wait`, then
 `docker compose run --rm test`. This starts the local chain and deploys the contracts automatically.
-The native workflow below remains useful for frequent source edits.
+Both local and test services build and run as `linux/arm64` on Apple Silicon; Intel emulation is
+not supported. The native workflow below remains useful for frequent source edits.
 
 ### 1. Install (10 min)
 
