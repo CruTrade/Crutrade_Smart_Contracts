@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/foundry-rs/foundry:latest AS foundry
-FROM oven/bun:latest
+FROM ghcr.io/foundry-rs/foundry:v1.8.5@sha256:32c8ea9ef052a440cb1620175987a3f49eff8b068a0c6a3d09ebf7f5f9a0e043 AS foundry
+FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288
 
+USER root
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git curl \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=foundry /usr/local/bin/forge /usr/local/bin/cast /usr/local/bin/anvil /usr/local/bin/

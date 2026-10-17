@@ -8,7 +8,7 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 ## Dev environment
 
-`make help` lists local workflow shortcuts. `make up` builds with refreshed base images and waits
+`make help` lists local workflow shortcuts. `make up` builds with pinned base images and waits
 for readiness; `make test` runs the offline container checks. `make reset` deletes local state.
 The Makefile only wraps Compose; keep contract logic and TypeScript tooling separate.
 Only local Docker development and offline test services/builds select `linux/arm64` for Apple
@@ -16,8 +16,10 @@ Silicon, without Intel emulation. Production, release and CI architecture choice
 
 For container onboarding, run `docker compose up --build -d --wait`; this builds the
 Foundry/Bun toolchain and starts Anvil with automatic local deployment. The image uses
-`ghcr.io/foundry-rs/foundry:latest` and `oven/bun:latest`, without Node; use `make build` or
-`docker compose build --pull` to refresh both. `docker compose run --rm test` runs
+`ghcr.io/foundry-rs/foundry:v1.8.5` and `oven/bun:1.4.3-slim`, pinned by immutable index digests
+in `Dockerfile`, without Node; use `make build` or `docker compose build --pull` to resolve those
+exact images. Updating either toolchain requires reviewing its version and digest together.
+`docker compose run --rm test` runs
 Foundry tests offline in a disposable container. See `README.md` for state, reset and port controls.
 Docker inputs are allowlisted by `.dockerignore`; never add host secrets or dependency caches.
 Container startup code lives in `docker/local-stack.ts`. Use TypeScript for new tooling and tests.
@@ -25,7 +27,8 @@ Changes to it require validating initial
 deployment, restart reuse and failure handling on a disposable local volume. The Compose stack is
 local-only; it does not configure or authorize remote deployments.
 
-Requires Foundry (verified with forge 1.2.1), Bun (verified with 1.4.2) and Node (for `npx typechain`).
+The selected local toolchain is Foundry/Anvil 1.8.5, Bun 1.4.3 and Solidity 0.8.30.
+Legacy package generation still requires npm/npx for TypeChain; the Docker runtime uses Bun.
 
 | Task | Command |
 | --- | --- |
@@ -46,7 +49,8 @@ never run `forge fmt` without being asked: it would reformat the whole codebase.
 
 ## Testing
 
-Foundry tests live in a single suite, `test/Crutrade.t.sol` (115 tests at the verified commit).
+Foundry tests live in a single suite, `test/Crutrade.t.sol` (125 tests on the critical-fix branch;
+115 at the historical verified commit).
 
 ```bash
 forge test                              # full suite

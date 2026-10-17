@@ -13,17 +13,19 @@ Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
 The root `Makefile` wraps Compose: `make up`, `make down`, `make restart`, `make logs`,
 `make status`, `make addresses`, `make test`, and `make typecheck`. `make help` documents all targets.
-`make up`, `make test`, and `make typecheck` build first and refresh base images; `make start`
+`make up`, `make test`, and `make typecheck` build first and resolve pinned base images; `make start`
 reuses an existing image. `make reset` explicitly deletes the local chain/deployment volume.
 Use the same `COMPOSE` override and `CRUTRADE_RPC_PORT` for commands targeting a custom project.
 
 The repository now includes `Dockerfile`, `compose.yaml` and `docker/local-stack.ts` for local
 development. Run `docker compose up --build -d --wait` to build and start Anvil plus an automatic
 ecosystem deployment. `docker compose run --rm test` runs the Foundry suite without network access.
-The image uses `ghcr.io/foundry-rs/foundry:latest` and `oven/bun:latest`, without a Node runtime,
-using the native Docker architecture. Run `make build` or `docker compose build --pull` to refresh
-both toolchains. Dependencies and the pinned Solidity 0.8.30 compiler are downloaded
-during build; host secrets and caches are excluded. Legacy package release tooling still needs npm/npx.
+The image uses `ghcr.io/foundry-rs/foundry:v1.8.5` and `oven/bun:1.4.3-slim`, pinned by immutable
+index digests in `Dockerfile`, without a Node runtime. Local Compose selects native Linux ARM64.
+Run `make build` or `docker compose build --pull` to resolve these exact images; update version
+and digest together when selecting another toolchain. Dependencies and the pinned Solidity 0.8.30
+compiler are downloaded during build; host secrets and caches are excluded.
+Legacy package release tooling still needs npm/npx.
 `script/deploy.ts` omits empty optional Forge arguments, which newer Forge otherwise interprets as
 arguments to the Solidity script's `run()` function.
 
@@ -37,8 +39,8 @@ See [the README](../README.md) for commands, local workflow and known setup limi
 
 | Tool | Verified version | Used for |
 | --- | --- | --- |
-| Foundry (`forge`, `cast`, `anvil`) | 1.2.1-stable | build, test, deploy, inspect |
-| Bun | 1.4.2 | every `script/*.ts` |
+| Foundry (`forge`, `cast`, `anvil`) | 1.8.5 (selected local toolchain) | build, test, deploy, inspect |
+| Bun | 1.4.3 (selected local toolchain) | every `script/*.ts` |
 | Node / npm | 26.8.2 | `npx typechain` inside the type generation step |
 
 Install dependencies with `forge soldeer install` (Solidity, into `dependencies/`) and `bun install`

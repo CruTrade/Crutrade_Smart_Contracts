@@ -22,7 +22,23 @@ The Docker image contains freshly installed dependencies and compiled contracts,
 or secrets. Validation uses the host's native architecture; ARM64 results are not independent AMD64
 release evidence. See `README.md` for the Docker setup.
 
-Latest Foundry validation on 2026-09-11: `forge`, `cast` and `anvil` resolved to 1.8.1
+Selected development toolchain validation on 2026-10-17: `forge`, `cast` and `anvil` are 1.8.5
+(commit `51a52c59cffd940f76eddd0b4bb1791aa4b5ac7f`), Bun is 1.4.3 and Solc is
+0.8.30 (`73712a01`), running natively on Linux ARM64. The separately tagged
+`crutrade-contracts:stable-185` image is
+`sha256:4bf51805bcf22784b99d0ba346d510bfcd039eca8ed1f413d35e112bdcf4d52b`.
+It reused the previously verified container's dependency/compiler cache, copied the exact checkout
+sources and the pinned official Foundry binaries, and forced an offline compile. This validates
+toolchain compatibility, not a fresh dependency download using the normal Dockerfile.
+All 125 Foundry tests passed with zero failures or skips; the disposable deployment/restart/reuse/
+invalid-state lifecycle test also passed. All eight contracts' ABI, storage-layout, creation-bytecode
+and runtime-bytecode hashes match the previous 1.8.1 image. TypeScript still reports the three
+existing diagnostics in `config.ts:4` and `script/init.ts:129` (twice).
+Both test commands ran with `--network none`, without host ports or state-volume mounts; existing
+Compose projects and chains were not used. No proxy upgrade, package publication or remote action
+is established by these checks.
+
+Historical Foundry validation on 2026-09-11: `forge`, `cast` and `anvil` resolved to 1.8.1
 (commit `982849d3140c01fd3b72905759581a132df7aa98`), with Bun 1.4.2 on Debian 13/Linux ARM64.
 The sanitized staged snapshot built as image
 `sha256:ef2af87bcc9756530417ae0cae64ac247270faba554ae0a3ff3649ba6623d3c7`.

@@ -22,7 +22,8 @@ forge soldeer install     # Solidity deps into dependencies/
 bun install               # JS deps into node_modules/
 ```
 
-Foundry and Bun must already be installed. Verify with `forge --version` and `bun --version`.
+Foundry 1.8.5 and Bun 1.4.3 must already be installed to match the pinned Docker toolchain.
+Verify with `forge --version` and `bun --version`; Solidity remains pinned to 0.8.30.
 
 ### 2. Build and test (10 min)
 
@@ -31,7 +32,8 @@ forge build --via-ir
 forge test
 ```
 
-Expect 115 passing tests. The first build is slow because `via_ir` is on; later builds use `cache/`.
+Expect 125 tests on the critical-fix branch (115 at the historical verified commit).
+The first build is slow because `via_ir` is on; later builds use `cache/`.
 
 `npx tsc --noEmit` currently reports four errors across three files, all pre-existing and unrelated to
 the contracts. See

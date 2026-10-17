@@ -13,7 +13,7 @@ provide marketplace fixtures and signed transaction examples.
 From the repository root, with Make installed, these shortcuts wrap the Docker Compose workflow:
 
 ```bash
-make up          # Build with latest Foundry/Bun, deploy, and wait for readiness
+make up          # Build pinned Foundry 1.8.5/Bun 1.4.3, deploy, and wait for readiness
 make addresses   # Print local proxy addresses
 make test        # Run offline Solidity and TypeScript lifecycle tests
 make logs        # Follow logs; Ctrl-C stops following
@@ -86,10 +86,17 @@ copied or mounted. The state volume contains local development data only.
 ## Native development setup
 
 Use this path when editing contracts frequently. Run all commands from the repository root.
-Install Foundry (`forge`, `cast`, `anvil`) and the latest stable Bun first. The Dockerfile uses
-**`ghcr.io/foundry-rs/foundry:latest`** and **`oven/bun:latest`**, with no Node.js runtime.
-`make build` or `docker compose build --pull` refreshes both images. Solidity remains pinned to
-**0.8.30** and targets Cancun with `via_ir = true`.
+Install Foundry (`forge`, `cast`, `anvil`) **1.8.5** and Bun **1.4.3** to match the selected local
+toolchain. The Dockerfile pins **`ghcr.io/foundry-rs/foundry:v1.8.5`** to index digest
+`sha256:32c8ea9ef052a440cb1620175987a3f49eff8b068a0c6a3d09ebf7f5f9a0e043` and
+**`oven/bun:1.4.3-slim`** to index digest
+`sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288`, with no Node.js runtime.
+The Foundry Linux ARM64 manifest is
+`sha256:07b00590675e98c3b2d3d0733d96ed934186e5f6657af6d1ad91938a26d1ef07`.
+`make build` or `docker compose build --pull` resolves these pinned images; it does not select a
+new toolchain automatically. Review the version and digest together when updating.
+Solidity remains pinned to **0.8.30** and targets Cancun with `via_ir = true`.
+Changing the development toolchain does not upgrade existing proxies or reset their state.
 
 ```bash
 forge --version

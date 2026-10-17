@@ -26,8 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docker local environment: explicitly build and run all development and offline test services as native `linux/arm64` on Apple Silicon.
 
-- Docker: track the latest Foundry image alongside Bun while retaining Solidity 0.8.30.
-- Docker: use the latest Bun image and TypeScript for startup and lifecycle tests, removing the Node.js runtime.
+- Docker local toolchain: pin Foundry/Anvil 1.8.5 and Bun 1.4.3 by immutable image digests while retaining Solidity 0.8.30 and native ARM64 development services.
+- Docker: use Bun and TypeScript for startup and lifecycle tests, removing the Node.js runtime.
 - `README.md`: add Docker and native onboarding, marketplace prerequisites, package generation,
   remote deployment constraints and contributor/agent workflow.
 - `README.md`: corrected the install command to the published package name `@crutrade/contracts`,

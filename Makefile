@@ -8,9 +8,9 @@ COMPOSE ?= docker compose
 help:
 	@printf '%s\n' \
 	  'CruTrade local development' \
-	  '  make up         Build with latest Foundry/Bun and start the local stack' \
+	  '  make up         Build pinned Foundry 1.8.5/Bun 1.4.3 and start the local stack' \
 	  '  make start      Start the existing image and preserve saved state' \
-	  '  make build      Build the image, refreshing base images' \
+	  '  make build      Build the image, resolving the pinned base images' \
 	  '  make down       Stop containers; preserve local state' \
 	  '  make restart    Recreate containers using the existing image and saved state' \
 	  '  make logs       Follow local stack logs (Ctrl-C to stop following)' \
