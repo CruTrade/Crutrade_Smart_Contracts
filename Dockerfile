@@ -21,7 +21,8 @@ COPY --chown=bun:bun test/ test/
 COPY --chown=bun:bun index.ts tsconfig.json tsup.config.ts config.ts ./
 # Download the pinned compiler and compile during the network-enabled build.
 # Runtime deployment and tests then work without internet access.
-RUN forge build --via-ir
+# Force dependent deployment-script bytecode to be rebuilt after contract edits.
+RUN forge build --force --via-ir
 COPY --chown=bun:bun types/ types/
 COPY --chown=bun:bun docker/ docker/
 

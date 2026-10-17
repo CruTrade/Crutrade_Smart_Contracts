@@ -36,6 +36,7 @@ contract MockERC20 is ERC20 {
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
+
 }
 
 // Mock ERC20 with permit functionality for testing
@@ -4315,6 +4316,165 @@ contract CrutradeEcosystemTest is Test {
         assertEq(actualURI, expectedURI, "Token URI should match production format");
 
         vm.stopPrank();
+    }
+
+
+    function _transferExportFixtureToBuyer(uint256 wrapperId) internal {
+        address[] memory users = new address[](1);
+        users[0] = buyer;
+        vm.prank(admin);
+        whitelist.addToWhitelist(users);
+        vm.prank(seller);
+        wrappers.transferFrom(seller, buyer, wrapperId);
+        assertEq(wrappers.ownerOf(wrapperId), buyer);
+        assertTrue(wrappers.getWrapperData(wrapperId).active);
+    }
+
+    function test_RevertOnWrapperExportForFormerOwner() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        _transferExportFixtureToBuyer(wrapperId);
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = wrapperId;
+        vm.expectRevert(abi.encodeWithSelector(ModifiersBase.NotOwner.selector, seller, buyer));
+        vm.prank(operational);
+        wrappers.exports(seller, ids);
+        assertTrue(wrappers.getWrapperData(wrapperId).active);
+        assertEq(wrappers.ownerOf(wrapperId), buyer);
+    }
+
+    function test_WrapperExportByCurrentOwnerAfterTransfer() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        _transferExportFixtureToBuyer(wrapperId);
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = wrapperId;
+        vm.prank(operational);
+        wrappers.exports(buyer, ids);
+        assertFalse(wrappers.getWrapperData(wrapperId).active);
+        assertEq(wrappers.ownerOf(wrapperId), buyer);
+    }
+
+    function test_RevertOnMixedOwnerExportBatchRollsBack() public {
+        (uint256 wrapperId, uint256 brandId) = _setupWrapperForSale();
+        IWrappers.WrapperData[] memory data = new IWrappers.WrapperData[](1);
+        data[0] = IWrappers.WrapperData({
+            uri: "https://example.invalid/export-owner-2", metaKey: "owner_2",
+            amount: 0, tokenId: 2, brandId: brandId,
+            collection: keccak256("TEST_COLLECTION"), active: false
+        });
+        vm.prank(operational);
+        wrappers.imports(seller, data);
+        _transferExportFixtureToBuyer(wrapperId + 1);
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = wrapperId;
+        ids[1] = wrapperId + 1;
+        vm.expectRevert(abi.encodeWithSelector(ModifiersBase.NotOwner.selector, seller, buyer));
+        vm.prank(operational);
+        wrappers.exports(seller, ids);
+        assertTrue(wrappers.getWrapperData(ids[0]).active);
+        assertTrue(wrappers.getWrapperData(ids[1]).active);
+        assertEq(wrappers.getCollectionData(keccak256("TEST_COLLECTION")).length, 2);
+        assertEq(wrappers.ownerOf(ids[0]), seller);
+        assertEq(wrappers.ownerOf(ids[1]), buyer);
+    }
+
+    function test_RevertOnWrapperExportInMarketplaceEscrow() public {
+        _setupAndListItem();
+        assertEq(wrappers.ownerOf(1), address(sales));
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = 1;
+        vm.expectRevert(abi.encodeWithSelector(ModifiersBase.NotOwner.selector, seller, address(sales)));
+        vm.prank(operational);
+        wrappers.exports(seller, ids);
+        assertTrue(wrappers.getWrapperData(1).active);
+        assertEq(wrappers.ownerOf(1), address(sales));
+    }
+
+    function test_WrapperExportKeepsPauseAndOperationalGuards() public {
+        (uint256 wrapperId,) = _setupWrapperForSale();
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = wrapperId;
+        vm.expectRevert(abi.encodeWithSelector(ModifiersBase.NotAllowed.selector, OPERATIONAL, seller));
+        vm.prank(seller);
+        wrappers.exports(seller, ids);
+        vm.prank(admin);
+        wrappers.pause();
+        vm.expectRevert(bytes4(keccak256("EnforcedPause()")));
+        vm.prank(operational);
+        wrappers.exports(seller, ids);
+        assertTrue(wrappers.getWrapperData(wrapperId).active);
+        vm.prank(admin);
+        wrappers.unpause();
+        vm.prank(operational);
+        wrappers.exports(seller, ids);
+        assertFalse(wrappers.getWrapperData(wrapperId).active);
+    }
+
+    function test_BuySettlesAsymmetricParticipantFeesExactly() public {
+        _assertBuyRoleFees(700, 125, 275, 450, false);
+    }
+
+    function test_BuyKeepsZeroParticipantFees() public {
+        _assertBuyRoleFees(0, 0, 0, 0, false);
+    }
+
+    function test_BuyKeepsSymmetricParticipantFees() public {
+        _assertBuyRoleFees(125, 125, 275, 275, false);
+    }
+
+    function test_BuyFiatKeepsPayerAndSurchargeWithRoleFees() public {
+        _assertBuyRoleFees(700, 125, 275, 450, true);
+    }
+
+    function testFuzz_BuyUsesParticipantRoleFees(uint16 buyerBps, uint16 sellerBps) public {
+        _assertBuyRoleFees(1700, bound(buyerBps, 0, 1500), bound(sellerBps, 0, 1500), 1900, false);
+    }
+
+    function _assertBuyRoleFees(uint256 buyerSellBps, uint256 buyerBuyBps, uint256 sellerSellBps, uint256 sellerBuyBps, bool fiat) internal {
+        uint256 saleId = _setupAndListItem();
+        vm.startPrank(admin);
+        payments.setMembershipFees(1, buyerSellBps, buyerBuyBps);
+        payments.setMembershipFees(2, sellerSellBps, sellerBuyBps);
+        payments.setServiceFee(BUY, 0);
+        // Use the actual supported setter: the separately documented initializer
+        // shadowing issue must not contaminate this participant-fee regression.
+        payments.setFiatFeePercentage(300);
+        payments.updateFee(keccak256("TREASURY"), 10000, feeReceiver);
+        if (fiat) {
+            roles.grantRole(FIAT, treasury);
+            roles.setPrimaryAddress(FIAT, treasury);
+        }
+        vm.stopPrank();
+        vm.startPrank(operational);
+        memberships.setMemberships(_toAddressArray(buyer), 1);
+        memberships.setMemberships(_toAddressArray(seller), 2);
+        whitelist.addToWhitelist(_toAddressArray(buyer));
+        vm.stopPrank();
+
+        MockERC20 token = fiat ? fiatToken : mockToken;
+        address payer = fiat ? treasury : buyer;
+        vm.prank(payer);
+        token.approve(address(payments), type(uint256).max);
+        ISales.Sale memory sale = sales.getSale(saleId);
+        vm.warp(sale.start + 1);
+        uint256 payerBefore = token.balanceOf(payer);
+        uint256 buyerBefore = token.balanceOf(buyer);
+        uint256 sellerBefore = token.balanceOf(seller);
+        uint256 treasuryBefore = token.balanceOf(feeReceiver);
+        uint256 buyerFee = sale.price * buyerBuyBps / 10000;
+        uint256 sellerFee = sale.price * sellerSellBps / 10000;
+        uint256 fiatFee = fiat ? sale.price * 300 / 10000 : 0;
+        uint256 nonce = _getCurrentNonce(buyer);
+        uint256 expiry = _calculateExpiry(30);
+        bytes memory signature = _generateBuySignature(buyer, sales.buy.selector, nonce, expiry, 0, saleId, fiat);
+        vm.prank(operational);
+        sales.buy(buyer, nonce, expiry, signature, 0, saleId, fiat, fiat ? address(0) : address(token));
+
+        assertEq(payerBefore - token.balanceOf(payer), sale.price + buyerFee + fiatFee, "Buyer-role fee and unchanged fiat payer debit");
+        assertEq(token.balanceOf(seller) - sellerBefore, sale.price - sellerFee, "Seller-role fee credit");
+        assertEq(token.balanceOf(feeReceiver) - treasuryBefore, buyerFee + sellerFee + fiatFee, "Exact fee conservation");
+        if (fiat) assertEq(token.balanceOf(buyer), buyerBefore, "Fiat buyer is not the token payer");
+        assertEq(wrappers.ownerOf(sale.wrapperId), buyer);
+        assertFalse(sales.getSale(saleId).active);
     }
 
 }

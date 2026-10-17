@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
 ### Added
 
 - Makefile: shortcuts for Docker startup, logs, proxy addresses, tests, typechecking and explicit local-state reset.
@@ -34,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   linked the new documentation.
 
 ### Fixed
+
+- Local Docker toolchain: force recompilation of deployment scripts after Solidity edits so cached scripts cannot install an older implementation.
+
+- Payments: apply the buyer's buying rate and seller's selling rate when settling purchases, preserving the public ABI and existing fiat payer/surcharge behavior.
+
+- Wrappers validates the current owner when an export executes, preventing a stale request from deactivating another user's wrapper and preserving atomic batch rollback.
 
 - Deployment script: omit empty optional arguments so local deployment works with current Foundry releases.
 

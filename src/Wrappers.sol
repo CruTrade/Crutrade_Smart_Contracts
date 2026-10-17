@@ -139,7 +139,7 @@ contract Wrappers is WrapperBase {
     if (length == 0) revert EmptyInput();
 
     for (uint256 i; i < length; i++) {
-      _processSingleExport(wrapperIds[i]);
+      _processSingleExport(user, wrapperIds[i]);
     }
 
     emit Export(user, wrapperIds);

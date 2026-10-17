@@ -158,3 +158,31 @@ is standard for ERC-2612 relays since the signature itself is the authorization.
 - `isFiat` is part of the signed payload but the contract derives the fiat path solely from
   `erc20 == address(0)`. A signature could therefore claim `isFiat = true` while the relayer passes a
   real token address, and nothing rejects the mismatch.
+
+
+## Export ownership at execution
+
+`Wrappers.exports(user, wrapperIds)` verifies that each active wrapper is still
+owned by `user` immediately before deactivation. An earlier API preflight cannot
+substitute for this check when the wrapper changes hands before execution. A
+wrong owner reverts the complete batch with the existing `NotOwner` error, so
+previous items in that transaction remain active. Marketplace escrow does not
+count as user ownership. The public ABI, EIP712 types and storage layout are
+unchanged. This local change requires a separately authorized contract rollout;
+no live deployment or package publication was performed.
+
+### Purchase participant rates (local critical-fix candidate)
+
+`Sales` calls `Payments.splitFees(token, saleId, buyer, seller, price)`. The payer
+uses the buyer membership's `buyerFee`; the recipient bears the seller membership's `sellerFee`. At base100, buyer125bps and seller275bps, crypto settlement is
+buyer debit101.25, seller credit97.25 and total fees4. A single10000bps treasury
+distribution conserves those exact token units. Service fees remain separate.
+
+The previous implementation selected the opposite fields within each membership.
+The local real API/OZRedis receipt reproduced debit107 and seller credit95.5 for
+that asymmetric fixture while the API quoted101.25. The two field selections are
+corrected without changing setters, public signatures, storage or typed data.
+Zero/symmetric rates remain covered, and actual fiat-contract tests preserve the
+configured payer and3% surcharge. The existing initializer shadowing defect is
+separate: tests explicitly configure its supported setter rather than changing it.
+No contract upgrade or package publication is included.

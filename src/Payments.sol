@@ -288,8 +288,8 @@ contract Payments is PaymentsBase {
     // Calculate percentage-based fees
     (uint256 fromFee, uint256 toFee) = _calculatePercentageFees(
       amount,
-      fromMembershipFees.sellerFee,
-      toMembershipFees.buyerFee
+      fromMembershipFees.buyerFee,
+      toMembershipFees.sellerFee
     );
 
     // Create TransactionFees structure

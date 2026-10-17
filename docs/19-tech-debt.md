@@ -1,7 +1,8 @@
 # 19 — Technical debt
 
 A factual inventory of defects, dead code, broken references and gaps found while reading the
-repository. Nothing here was fixed. Each item names the file and, where useful, the line.
+repository. Resolved entries identify their local source correction; unmarked items remain open.
+Each item names the file and, where useful, the line.
 
 Last verified against commit: 136615be21009eb2ea72a249527f07e2c1c61ab3
 
@@ -63,6 +64,10 @@ Every other user-facing operation carries `whenNotPaused`; `src/Payments.sol:sen
 
 `src/Wrappers.sol:exports` takes a `user` for the whitelist check and the event, then deactivates the
 given ids in `WrapperBase._processSingleExport` without checking that `user` owns them.
+
+**Corrected in the local critical-fix branch:** the internal export now requires
+`ownerOf(wrapperId) == user` at transaction execution. The public ABI and storage
+layout are unchanged; this source correction has not been deployed.
 
 ### `unchecked` fee arithmetic
 
@@ -182,3 +187,12 @@ JavaScript dependencies use caret ranges (`^0.4.0`, `^1.44.1`, `^17.2.1`, `^6.15
 dev set), so `bun install` without the lockfile can resolve differently. `bun.lock` is committed, which
 mitigates this for developers but not for a fresh `npm install`, since `package-lock.json` is
 gitignored.
+
+### Purchase membership role inversion (corrected locally)
+
+The previous `Payments.splitFees` used `from.sellerFee` and `to.buyerFee`, although
+its Sales caller passes `(buyer, seller)`. The critical-fix branch selects
+`from.buyerFee` and `to.sellerFee`. A real asymmetric purchase and exact native
+contract tests reproduce the original mischarge; zero/symmetric fees, configured
+fiat payer and surcharge, and generated fee combinations remain covered. No
+production mischarge is inferred from a local asymmetric configuration.

@@ -162,12 +162,15 @@ abstract contract WrapperBase is
 
     /**
      * @notice Processes a single wrapper export
+     * @param user Current owner requesting the export
      * @param wrapperId ID of the wrapper to export
      */
-    function _processSingleExport(uint256 wrapperId) internal {
+    function _processSingleExport(address user, uint256 wrapperId) internal {
         WrapperData storage wrapper = _wrappersById[wrapperId];
         if (!wrapper.active) revert InvalidToken();
         if (wrapper.collection == bytes32(0)) revert WrapperNotFound(wrapperId);
+        address actualOwner = ownerOf(wrapperId);
+        if (actualOwner != user) revert NotOwner(user, actualOwner);
         wrapper.active = false;
         _wrappersByCollection[wrapper.collection].remove(wrapperId);
     }

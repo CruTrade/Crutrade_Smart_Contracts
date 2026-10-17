@@ -129,3 +129,14 @@ Every code change in this repo must:
    `.claude/rules/` file.
 4. **Run `forge test` and `npx tsc --noEmit` before committing.** If a change touches the contract
    surface, also run `forge build --via-ir`.
+
+## Critical ownership and settlement regressions
+
+The local critical-fix candidate preserves the complete Wrappers/Payments ABI and
+recursive storage layout. Export must verify the supplied user is the current
+ERC721 owner at execution. Sales percentage settlement uses buyer.buyFee and
+seller.sellFee; service fees, fiat payer selection and configured surcharge remain
+separate. Native offline Foundry verification covers125 tests, including five
+export-owner regressions and exact/asymmetric/zero/symmetric/fiat/generated fee
+settlement. These source corrections require a separately authorized proxy upgrade;
+local tests and branch delivery never imply a deployment or package publication.
